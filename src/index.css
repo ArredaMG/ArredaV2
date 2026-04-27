@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/* 1. TEMA CLARO (PADRÃO) */
+:root {
+  --bg-color: #F5F5F7;
+  --card-bg: #FFFFFF;
+  --sidebar-bg: #FFFFFF;
+  --text-color: #1D1D1F;
+  --text-muted: #86868B;
+  --border-color: #E5E5EA;
+  --primary: #FF5A00;
+  --primary-hover: #E65100;
+  --input-bg: #F9F9F9;
+  --zebra-bg: #F9F9F9;
+  --hover-bg: rgba(255, 90, 0, 0.05);
+}
+
+/* 2. TEMA ESCURO AUTOMÁTICO (Segue o Windows/Mac/iOS) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #000000;
+    --card-bg: #1C1C1E;
+    --sidebar-bg: #1C1C1E;
+    --text-color: #F5F5F7;
+    --text-muted: #A1A1A6; 
+    --border-color: #38383A;
+    --primary: #FF5A00;
+    --primary-hover: #FF7B33;
+    --input-bg: #2C2C2E;
+    --zebra-bg: #242426;
+    --hover-bg: rgba(255, 90, 0, 0.15);
+  }
+}
+
+/* 3. APLICAÇÃO UNIVERSAL */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.card, .aba-conteudo, .bloco-orcamento, #menu-principal, 
+.kanban-card, .kanban-coluna, .ficha-tecnica, dialog, 
+details, summary, .container-cabecalho {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+input, select, textarea {
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border: 1px solid var(--primary);
+  background-color: var(--card-bg);
+  box-shadow: 0 0 0 3px rgba(255, 90, 0, 0.1);
+}
+
+dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: none;
+  border-radius: 16px;
+  padding: 24px;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  width: 90%;
+  max-width: 500px;
+  z-index: 1000;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-confirmar {
+  background-color: var(--primary); /* Atualizado para a cor primária do tema */
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+/* 4. TABELA ZEBRA */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 12px; color: var(--text-muted); border-bottom: 2px solid var(--border-color); }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border-color); }
+tbody tr:nth-child(even) td { background-color: var(--zebra-bg); }
+tbody tr:hover td { background-color: rgba(255, 90, 0, 0.05); }
+
+/* Tooltips Premium Arreda */
+[data-tooltip] { position: relative; cursor: pointer; }
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background-color: var(--text-color);
+  color: var(--card-bg);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  pointer-events: none;
+  z-index: 1000;
+}
+[data-tooltip]::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: var(--text-color) transparent transparent transparent;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+}
+[data-tooltip]:hover::after, [data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+@theme {
+  --color-brand-500: var(--primary);
+  --color-brand-600: var(--primary-hover);
+}
+
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@media print {
+  @page {
+    margin: 1cm;
+    size: A4;
+  }
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: var(--card-bg) !important;
+    color: var(--text-color) !important;
+  }
+  .printable-area {
+    background: var(--card-bg) !important;
+    min-height: auto !important;
+    padding-bottom: 0 !important;
+    width: 100% !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .print\:block {
+    display: block !important;
+  }
+  .print\:bg-white {
+    background-color: var(--card-bg) !important;
+  }
+  
+  /* Make inputs look like regular text on print */
+  input, select, textarea {
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    color: var(--text-color) !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+  
+  /* Hide the select dropdown arrow */
+  select {
+    background-image: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
