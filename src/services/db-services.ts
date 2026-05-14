@@ -447,8 +447,15 @@ export const syncVersionWithDb = async (version: ProjectVersion) => {
             .where(eq(schema.costGroups.versionId, version.id));
     }
 
+    const dbVersion = await tx.query.projectVersions.findFirst({
+        where: eq(schema.projectVersions.id, version.id),
+        columns: { projectId: true }
+    });
+
+    if (!dbVersion) return null;
+
     const updatedProject = await tx.query.projects.findFirst({
-        where: eq(schema.projects.id, version.projectId),
+        where: eq(schema.projects.id, dbVersion.projectId),
         with: {
             client: true,
             versions: {

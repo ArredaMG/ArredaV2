@@ -34,12 +34,11 @@ describe('Cálculos Financeiros de Orçamentos', () => {
     
     const result = calculateProjectTotals(version);
 
-    expect(result.custoEquipe).toBeCloseTo(1000.00, 2);
-    expect(result.lucroOperacional).toBeCloseTo(200.00, 2);
-    expect(result.vendaEquipe).toBeCloseTo(1200.00, 2);
+    expect(result.totalCost).toBeCloseTo(1000.00, 2);
+    expect(result.totalProfit).toBeCloseTo(200.00, 2);
     expect(result.subtotal).toBeCloseTo(1200.00, 2);
     expect(result.totalProposta).toBeCloseTo(1263.16, 2);
-    expect(result.valorImpostos).toBeCloseTo(63.16, 2);
+    expect(result.totalTax).toBeCloseTo(63.16, 2);
   });
 
   it('Cenário 2: Apenas Logística (Validação de Isenção de Margem)', () => {
@@ -48,11 +47,11 @@ describe('Cálculos Financeiros de Orçamentos', () => {
     
     const result = calculateProjectTotals(version);
 
-    expect(result.vendaLogistica).toBeCloseTo(500.00, 2);
+    expect(result.totalCost).toBeCloseTo(500.00, 2);
     expect(result.subtotal).toBeCloseTo(500.00, 2);
     expect(result.totalProposta).toBeCloseTo(555.56, 2);
-    expect(result.valorImpostos).toBeCloseTo(55.56, 2);
-    expect(result.lucroOperacional).toBeCloseTo(0.00, 2);
+    expect(result.totalTax).toBeCloseTo(55.56, 2);
+    expect(result.totalProfit).toBeCloseTo(0.00, 2);
   });
 
   it('Cenário 3: Cenário Híbrido (Equipa + Logística juntos)', () => {
@@ -64,11 +63,10 @@ describe('Cálculos Financeiros de Orçamentos', () => {
     
     const result = calculateProjectTotals(version);
 
-    expect(result.vendaEquipe).toBeCloseTo(1200.00, 2);
-    expect(result.vendaLogistica).toBeCloseTo(500.00, 2);
+    expect(result.totalCost).toBeCloseTo(1500.00, 2);
     expect(result.subtotal).toBeCloseTo(1700.00, 2);
     expect(result.totalProposta).toBeCloseTo(1888.89, 2);
-    expect(result.valorImpostos).toBeCloseTo(188.89, 2);
-    expect(result.lucroOperacional).toBeCloseTo(200.00, 2);
+    expect(result.totalTax).toBeCloseTo(188.89, 2);
+    expect(result.totalProfit).toBeCloseTo(200.00, 2);
   });
 });

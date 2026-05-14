@@ -152,6 +152,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           client: projectData.client,
           status: savedProject.status as any,
           projectNumber: savedProject.projectNumber,
+          recordingDates: projectData.recordingDates || [],
           createdAt: savedProject.createdAt,
           versions: [{
               ...savedProject.versions[0],

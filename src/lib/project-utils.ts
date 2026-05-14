@@ -2,7 +2,7 @@ import { Project } from '../types';
 import { calculateProjectTotals } from './calculations';
 
 export const calculateFinancials = (project: Project) => {
-  const activeVersion = project.versions?.find(v => v.isActive) || project.versions?.[0];
+  const activeVersion = project.versions?.[project.versions.length - 1] || project.versions?.[0];
   if (!activeVersion || !activeVersion.groups) {
     return { total: 0, profit$: 0, tax$: 0, profitPercent: 0, taxPercent: 0, title: project.title, client: project.client, dates: project.recordingDates || [] };
   }
