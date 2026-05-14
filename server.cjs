@@ -65,7 +65,18 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
       return res.status(500).json({ error: 'Configuração do Google Drive ausente no servidor.' });
     }
 
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY ? process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined;
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+
+    if (privateKey) {
+      // 1. Remove aspas duplas ou simples no início e fim (comum em painéis de env)
+      privateKey = privateKey.replace(/^['"]|['"]$/g, '');
+      // 2. Converte \n literais em quebras de linha reais
+      privateKey = privateKey.replace(/\\n/g, '\n');
+      // 3. Garante que não existam espaços em branco desnecessários antes/depois
+      privateKey = privateKey.trim();
+    }
+
+    console.log("🔑 Verificação da Chave: Começa com:", privateKey?.substring(0, 25));
 
     const auth = new google.auth.GoogleAuth({
       credentials: {
