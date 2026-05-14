@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { SignedIn, SignedOut, SignIn } from '@clerk/clerk-react';
 import { AppProvider } from './context/AppContext';
 import { ModalProvider } from './context/ModalContext';
 import { Layout } from './components/Layout';
@@ -13,25 +14,26 @@ import { Login } from './pages/Login';
 
 const router = createBrowserRouter([
   {
-    path: "/login",
-    element: <Login />
-  },
-  {
     path: "/",
-    element: <ProtectedRoute />, // Rota protegida envolvendo o Layout
+    element: (
+      <>
+        <SignedIn>
+          <Layout />
+        </SignedIn>
+        <SignedOut>
+          <div className="min-h-screen flex items-center justify-center bg-gray-900">
+            <SignIn routing="hash" />
+          </div>
+        </SignedOut>
+      </>
+    ),
     children: [
-      {
-        path: "/",
-        element: <Layout />,
-        children: [
       { index: true, element: <Dashboard /> },
       { path: "orcamentos", element: <Orcamentos /> },
       { path: "orcamentos/:id", element: <Planilha /> },
-          { path: "recursos", element: <Recursos /> },
-          { path: "calendario", element: <Calendario /> },
-          { path: "*", element: <Navigate to="/" replace /> }
-        ]
-      }
+      { path: "recursos", element: <Recursos /> },
+      { path: "calendario", element: <Calendario /> },
+      { path: "*", element: <Navigate to="/" replace /> }
     ]
   }
 ]);

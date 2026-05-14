@@ -3,15 +3,9 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { LayoutDashboard, FileSpreadsheet, Users, Moon, Sun, LogOut, CalendarDays } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { cn } from '../lib/utils';
-
-import { useNavigate } from 'react-router-dom';
+import { UserButton } from '@clerk/clerk-react';
 
 export const Layout: React.FC = () => {
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    navigate('/login');
-  };
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -70,14 +64,8 @@ export const Layout: React.FC = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl transition-all duration-200 font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-          >
-            <LogOut size={20} />
-            Sair
-          </button>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex items-center gap-3 w-full rounded-xl transition-all duration-200 font-medium">
+          <UserButton afterSignOutUrl="/" showName />
         </div>
       </aside>
 
@@ -109,13 +97,10 @@ export const Layout: React.FC = () => {
               )}
             </NavLink>
           ))}
-          <button
-            onClick={handleLogout}
-            className="flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[72px] text-red-500 hover:text-red-700"
-          >
-            <LogOut size={24} />
-            <span className="text-[10px] font-medium">Sair</span>
-          </button>
+          <div className="flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[72px]">
+            <UserButton afterSignOutUrl="/" />
+            <span className="text-[10px] font-medium text-gray-500 mt-1">Conta</span>
+          </div>
         </div>
       </nav>
 

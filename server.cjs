@@ -7,7 +7,7 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('🚨 [FATAL ERROR - UNHANDLED REJECTION]:', reason);
 });
 
-let express, cors, google, formidable, fs, path, dotenv;
+let express, cors, google, formidable, fs, path, dotenv, ClerkExpressRequireAuth;
 try {
   express = require('express');
   cors = require('cors');
@@ -16,6 +16,7 @@ try {
   fs = require('fs');
   path = require('path');
   dotenv = require('dotenv');
+  ({ ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node'));
 } catch (err) {
   console.error('🚨 [ERRO DE REQUIRE]:', err.message);
 }
@@ -33,8 +34,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Rota de Upload do Google Drive
-app.post('/api/upload-drive', async (req, res) => {
+// Rota de Upload do Google Drive protegida pelo Clerk
+app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
   const form = formidable({
     keepExtensions: true,
     maxFileSize: 10 * 1024 * 1024, // 10MB limit
