@@ -142,6 +142,6 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT} no host 0.0.0.0`);
+app.listen(PORT, () => {
+  console.log(`Servidor iniciado pelo orquestrador na porta ${PORT}`);
 });
