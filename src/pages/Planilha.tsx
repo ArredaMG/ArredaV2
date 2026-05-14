@@ -73,15 +73,30 @@ export const Planilha: React.FC = () => {
         throw new Error(data.error || 'Erro no upload');
       }
 
+      // PROTOCOLO DE SINCRONIA ATÔMICA: Localiza o link antigo para log
+      const currentItem = activeVersion?.groups.find(g => g.id === groupId)?.items.find(i => i.id === itemId);
+      console.log("💾 ID antigo era: ", currentItem?.receiptLink || "Nenhum", " -> Novo ID é: ", data.url);
       console.log("🔗 Link retornado pelo servidor:", data.url);
-      console.log("💾 Atualizando banco de dados com o link novo...");
+      console.log("💾 Atualizando banco de dados (Neon) com o link novo...");
       
+      // 1. Atualiza estado do React imediatamente
       handleUpdateItem(groupId, itemId, { receiptLink: data.url });
-      setToastMessage('Anexo salvo com sucesso!');
+
+      // 2. Persiste imediatamente no banco AWAITANDO a resposta
+      if (project && activeVersionId && activeVersion) {
+        const updatedGroups = activeVersion.groups.map(g => {
+          if (g.id !== groupId) return g;
+          return {
+            ...g,
+            items: g.items.map(i => i.id === itemId ? { ...i, receiptLink: data.url } : i)
+          };
+        });
+        const updatedVersion = { ...activeVersion, groups: updatedGroups };
+        await updateProjectVersion(project.id, activeVersionId, updatedVersion);
+        setIsDirty(false); // Sincronizado
+      }
       
-      // Persiste imediatamente no banco para evitar ID desatualizado
-      // Chamamos saveProject() para garantir que o estado dirty seja processado
-      setTimeout(() => saveProject(), 100);
+      setToastMessage('Anexo salvo com sucesso!');
     } catch (error: any) {
       alert('Erro: ' + error.message);
     } finally {
@@ -119,8 +134,23 @@ export const Planilha: React.FC = () => {
       } else {
         console.warn('⚠️ Não foi possível extrair fileId de:', receiptLink);
       }
-      // Limpa o link localmente e persiste no banco
+      // Limpa o link localmente e persiste no banco (Neon)
       handleUpdateItem(groupId, itemId, { receiptLink: '' });
+      
+      // PROTOCOLO DE SINCRONIA ATÔMICA: Garante que o banco seja limpo
+      if (project && activeVersionId && activeVersion) {
+        const updatedGroups = activeVersion.groups.map(g => {
+          if (g.id !== groupId) return g;
+          return {
+            ...g,
+            items: g.items.map(i => i.id === itemId ? { ...i, receiptLink: '' } : i)
+          };
+        });
+        const updatedVersion = { ...activeVersion, groups: updatedGroups };
+        await updateProjectVersion(project.id, activeVersionId, updatedVersion);
+        setIsDirty(false);
+      }
+
       setToastMessage('Anexo removido com sucesso!');
     } catch (error: any) {
       alert('Erro ao remover anexo: ' + error.message);
