@@ -4,14 +4,12 @@ import { LayoutDashboard, FileSpreadsheet, Users, Moon, Sun, LogOut, CalendarDay
 import { useAppContext } from '../context/AppContext';
 import { cn } from '../lib/utils';
 
-import { supabase } from '../services/supabase';
 import { useNavigate } from 'react-router-dom';
 
 export const Layout: React.FC = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
     navigate('/login');
   };
 

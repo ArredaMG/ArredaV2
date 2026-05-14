@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { supabase } from '../services/supabase';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react'; // Exemplo de ícone de loading
 // import toast from 'react-hot-toast'; // Assumindo o uso de react-hot-toast
@@ -14,16 +13,8 @@ export function ExampleForm() {
     setIsLoading(true);
 
     try {
-      // Exemplo de Inserção no Supabase com try/catch
-      const { data, error } = await supabase
-        .from('projects')
-        .insert([{ title: name }])
-        .select();
-
-      if (error) throw error;
-
-      // toast.success('Projeto criado com sucesso!');
-      console.log('Sucesso!', data);
+      // Exemplo simulado
+      console.log('Sucesso!', name);
       setName('');
       
       // Opcional: navigate para listagem

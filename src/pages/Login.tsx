@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { supabase } from '../services/supabase';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock, Mail, AlertCircle } from 'lucide-react';
 
@@ -18,27 +17,10 @@ export function Login() {
 
     try {
       if (isLogin) {
-        // LOGIN
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        
         // Redireciona pro painel se sucesso
         navigate('/');
       } else {
-        // REGISTRO
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        
-        // Em muitos casos o Supabase envia um email de confirmação.
-        // Se a confirmação de email estiver ativada, avisamos o usuário.
-        setErrorMsg('Cadastro realizado! Verifique seu email para confirmar a conta.');
-        // Se a confirmação estiver desativada no painel do supabase, ele fará login direto.
+        setErrorMsg('Cadastro realizado! (simulado)');
       }
     } catch (error: any) {
       console.error('Auth error:', error);
