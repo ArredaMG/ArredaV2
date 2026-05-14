@@ -92,81 +92,84 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
 
     const drive = google.drive({ version: 'v3', auth });
 
-    // ── Verificação de Acesso à Pasta Pai ─────────────────────────────────
-    console.log('🚀 Tentando upload multipart para:', rootFolderId);
+    // ── Verificação de Acesso à Pasta Raiz ────────────────────────────────
+    console.log('🚀 Verificando acesso ao Shared Drive, rootFolderId:', rootFolderId);
     try {
       await drive.files.get({
         fileId: rootFolderId,
         fields: 'id, name',
         supportsAllDrives: true,
       });
-      console.log('✅ Acesso à pasta pai confirmado.');
+      console.log('✅ Acesso à pasta raiz confirmado.');
     } catch (accessErr) {
-      console.error('❌ Sem acesso à pasta pai:', accessErr.message);
+      console.error('❌ Sem acesso à pasta raiz:', accessErr.message);
       fs.unlinkSync(file.filepath);
       return res.status(500).json({ error: 'Sem permissão de acesso à pasta do Google Drive.', details: accessErr.message });
     }
 
-    // ── Busca ou criação da subpasta do projeto ───────────────────────────
-    const query = `'${rootFolderId}' in parents and name = '${projectName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-    const searchRes = await drive.files.list({
-      q: query,
-      fields: 'files(id, name)',
-      spaces: 'drive',
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true,
-    });
+    // ── Utilitário: busca ou cria uma pasta dentro de um pai específico ────
+    const getOrCreateFolder = async (folderName, parentId) => {
+      const q = `'${parentId}' in parents and name = '${folderName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+      const search = await drive.files.list({
+        q,
+        fields: 'files(id, name)',
+        spaces: 'drive',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
 
-    let folderId;
+      if (search.data.files && search.data.files.length > 0) {
+        console.log(`📂 Pasta "${folderName}" já existe:`, search.data.files[0].id);
+        return search.data.files[0].id;
+      }
 
-    if (searchRes.data.files && searchRes.data.files.length > 0) {
-      folderId = searchRes.data.files[0].id;
-      console.log('📂 Subpasta existente encontrada:', folderId);
-    } else {
-      const folderRes = await drive.files.create({
+      const created = await drive.files.create({
         requestBody: {
-          name: projectName,
+          name: folderName,
           mimeType: 'application/vnd.google-apps.folder',
-          parents: [rootFolderId],
+          parents: [parentId],
         },
         fields: 'id',
         supportsAllDrives: true,
       });
-      folderId = folderRes.data.id;
-      console.log('📁 Nova subpasta criada:', folderId);
+      console.log(`📁 Pasta "${folderName}" criada:`, created.data.id);
+      return created.data.id;
+    };
 
-      await drive.permissions.create({
-        fileId: folderId,
-        requestBody: { role: 'reader', type: 'anyone' },
-        supportsAllDrives: true,
-      });
-    }
+    // ── Hierarquia de Pastas ───────────────────────────────────────────────
+    // Nível 1: Categoria (ex: "Comprovantes Fiscais", "Contratos", "Orçamentos")
+    // Mude CATEGORY_FOLDER_NAME para alterar a categoria de destino no futuro.
+    const CATEGORY_FOLDER_NAME = 'Comprovantes Fiscais';
+    const categoryFolderId = await getOrCreateFolder(CATEGORY_FOLDER_NAME, rootFolderId);
+    console.log('📁 Pasta de categoria identificada/criada. ID:', categoryFolderId);
+
+    // Nível 2: Subpasta do Projeto (dentro da categoria)
+    const projectFolderId = await getOrCreateFolder(projectName, categoryFolderId);
+    console.log('📂 Subpasta do projeto identificada/criada. ID:', projectFolderId);
 
     // ── Nomenclatura e Upload ─────────────────────────────────────────────
     const originalExt = path.extname(file.originalFilename || file.newFilename);
     const newFileName = `${projectName} - ${itemName}${originalExt}`;
-
-    const fileMetadata = {
-      name: newFileName,
-      parents: [folderId],
-    };
 
     const media = {
       mimeType: file.mimetype || 'application/octet-stream',
       body: fs.createReadStream(file.filepath),
     };
 
-    console.log('📤 Enviando arquivo para subpasta ID:', folderId);
+    console.log('📤 Enviando arquivo para:', `${CATEGORY_FOLDER_NAME}/${projectName}/${newFileName}`);
 
     const uploadRes = await drive.files.create({
-      requestBody: fileMetadata,
-      media: media,
+      requestBody: {
+        name: newFileName,
+        parents: [projectFolderId],
+      },
+      media,
       fields: 'id, webViewLink, webContentLink',
       supportsAllDrives: true,
       keepRevisionForever: true,
     });
 
-    // Limpeza
+    // Limpeza do arquivo temporário
     fs.unlinkSync(file.filepath);
 
     return res.status(200).json({
