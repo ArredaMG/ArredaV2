@@ -36,9 +36,10 @@ app.use(express.json());
 
 // Rota de Upload do Google Drive protegida pelo Clerk
 app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
-  const form = formidable({
+  const form = formidable.formidable({
     keepExtensions: true,
     maxFileSize: 10 * 1024 * 1024, // 10MB limit
+    multiples: true
   });
 
   try {
@@ -64,10 +65,12 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
       return res.status(500).json({ error: 'Configuração do Google Drive ausente no servidor.' });
     }
 
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY ? process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined;
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: privateKey,
       },
       scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
     });
