@@ -6,9 +6,12 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
-dotenv.config();
-// Se houver arquivo .env.local, carrega ele explicitamente para garantir as chaves locais no ambiente dev
-dotenv.config({ path: '.env.local' });
+// Desativa dotenv na Hostinger, pois as envs vêm do painel
+if (process.env.NODE_ENV !== 'production' && !process.env.DATABASE_URL) {
+  dotenv.config();
+  // Se houver arquivo .env.local, carrega ele explicitamente para garantir as chaves locais no ambiente dev
+  dotenv.config({ path: '.env.local' });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -139,5 +142,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor iniciado pelo orquestrador na porta ${PORT}`);
+  console.log(`Servidor rodando limpo na porta ${PORT}`);
 });
