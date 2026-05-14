@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Plus, Trash2, Home, Printer, Save, ArrowLeft, Link as LinkIcon, Copy, Info, X, UserPlus, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Check, Paperclip, Eye, Loader2, Lock } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useModal } from '../context/ModalContext';
+import { useAuth } from '@clerk/clerk-react';
 import { CostGroup, CostItem, Project, ProjectVersion } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,6 +13,7 @@ import { getItemMetrics, calculateProjectTotals, getGroupMetrics } from '../lib/
 export const Planilha: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const { projects, updateProject, updateProjectVersion, addProjectVersion, professionals, equipments, clientes, addTemplate, templates, editingTemplateId, setEditingTemplateId, updateTemplate, deleteProjectVersion, isVersionLoading, loadVersionData, clearVersionData, addProfessional, addEquipment } = useAppContext();
   const { openModal } = useModal();
   
@@ -54,8 +56,10 @@ export const Planilha: React.FC = () => {
       formData.append('projectName', project?.title || 'Projeto_Sem_Nome');
       formData.append('itemName', itemName);
 
+      const token = await getToken();
       const res = await fetch('/api/upload-drive', {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
 
@@ -92,11 +96,18 @@ export const Planilha: React.FC = () => {
     setDeletingItemIds(prev => new Set(prev).add(itemId));
     try {
       if (fileId) {
-        const res = await fetch(`/api/delete-file/${fileId}`, { method: 'DELETE' });
+        console.log('🗑️ Deletando fileId:', fileId, 'extraído de:', receiptLink);
+        const token = await getToken();
+        const res = await fetch(`/api/delete-file/${fileId}`, {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Erro ao deletar no Drive.');
         }
+      } else {
+        console.warn('⚠️ Não foi possível extrair fileId de:', receiptLink);
       }
       // Limpa o link localmente e persiste no banco
       handleUpdateItem(groupId, itemId, { receiptLink: '' });
