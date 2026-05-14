@@ -42,6 +42,7 @@ The content is organized as follows:
 <directory_structure>
 .env.example
 .gitignore
+api/upload-drive.ts
 arreda-codebase.txt
 arreda-codebasev2.txt
 check_db.ts
@@ -49,6 +50,7 @@ drizzle.config.ts
 drizzle/0000_chief_wild_child.sql
 drizzle/meta/_journal.json
 drizzle/meta/0000_snapshot.json
+GoogleKey/arreda-erp-v2-7c11b969cc07.json
 index.html
 metadata.json
 package.json
@@ -91,6 +93,160 @@ vite.config.ts
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="api/upload-drive.ts">
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { google } from 'googleapis';
+import formidable from 'formidable';
+import fs from 'fs';
+import path from 'path';
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const form = formidable({
+    keepExtensions: true,
+    maxFileSize: 10 * 1024 * 1024, // 10MB limit
+  });
+
+  try {
+    const [fields, files] = await form.parse(req);
+
+    const fileArray = files.file;
+    if (!fileArray || fileArray.length === 0) {
+      return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    }
+
+    const file = fileArray[0];
+    const projectName = Array.isArray(fields.projectName) ? fields.projectName[0] : fields.projectName;
+    const itemName = Array.isArray(fields.itemName) ? fields.itemName[0] : fields.itemName;
+
+    if (!projectName || !itemName) {
+        fs.unlinkSync(file.filepath); // clean up
+        return res.status(400).json({ error: 'projectName e itemName são obrigatórios.' });
+    }
+
+    const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    if (!rootFolderId) {
+      fs.unlinkSync(file.filepath);
+      return res.status(500).json({ error: 'Configuração do Google Drive ausente no servidor.' });
+    }
+
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+      scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
+    });
+
+    const drive = google.drive({ version: 'v3', auth });
+
+    // 1. Procurar subpasta com projectName
+    const query = `'${rootFolderId}' in parents and name = '${projectName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    const searchRes = await drive.files.list({
+      q: query,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+    });
+
+    let folderId: string;
+
+    if (searchRes.data.files && searchRes.data.files.length > 0) {
+      // Pasta existe
+      folderId = searchRes.data.files[0].id!;
+    } else {
+      // Criar nova pasta
+      const folderMetadata = {
+        name: projectName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [rootFolderId],
+      };
+      const folderRes = await drive.files.create({
+        requestBody: folderMetadata,
+        fields: 'id',
+      });
+      folderId = folderRes.data.id!;
+
+      // Conceder permissão de leitura
+      await drive.permissions.create({
+        fileId: folderId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+      });
+    }
+
+    // 2. Nomenclatura Rigorosa
+    const originalExt = path.extname(file.originalFilename || file.newFilename);
+    const newFileName = `${projectName} - ${itemName}${originalExt}`;
+
+    // 3. Upload do arquivo
+    const fileMetadata = {
+      name: newFileName,
+      parents: [folderId],
+    };
+
+    const media = {
+      mimeType: file.mimetype || 'application/octet-stream',
+      body: fs.createReadStream(file.filepath),
+    };
+
+    const uploadRes = await drive.files.create({
+      requestBody: fileMetadata,
+      media: media,
+      fields: 'id, webViewLink, webContentLink',
+    });
+
+    // Limpeza
+    fs.unlinkSync(file.filepath);
+
+    return res.status(200).json({
+      status: 200,
+      success: true,
+      url: uploadRes.data.webViewLink,
+      downloadUrl: uploadRes.data.webContentLink,
+      fileId: uploadRes.data.id
+    });
+
+  } catch (error: any) {
+    console.error('Erro no upload:', error);
+    return res.status(500).json({ error: 'Erro interno ao processar upload.', details: error.message });
+  }
+}
+</file>
+
+<file path=".env.example">
+# GEMINI_API_KEY: Required for Gemini AI API calls.
+# AI Studio automatically injects this at runtime from user secrets.
+# Users configure this via the Secrets panel in the AI Studio UI.
+GEMINI_API_KEY="MY_GEMINI_API_KEY"
+
+# APP_URL: The URL where this applet is hosted.
+# AI Studio automatically injects this at runtime with the Cloud Run service URL.
+# Used for self-referential links, OAuth callbacks, and API endpoints.
+APP_URL="MY_APP_URL"
+</file>
+
+<file path=".gitignore">
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+</file>
 
 <file path="arreda-codebase.txt">
 This file is a merged representation of the entire codebase, combined into a single document by Repomix.
@@ -7718,6 +7874,38 @@ End of Codebase
 ================================================================
 </file>
 
+<file path="check_db.ts">
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+async function check() {
+  console.log('Buscando dados...');
+  const { data: clients, error: cErr } = await supabase.from('clients').select('*');
+  console.log('Clientes:', clients?.length, cErr);
+
+  const { data: projects, error: pErr } = await supabase.from('projects').select('*');
+  console.log('Projetos:', projects?.length, pErr);
+
+  const { data: profs, error: profErr } = await supabase.from('professionals').select('*');
+  console.log('Profissionais:', profs?.length, profErr);
+
+  const { data: groups, error: gErr } = await supabase.from('cost_groups').select('*');
+  console.log('Grupos de Custo:', groups?.length, gErr);
+
+  const { data: items, error: iErr } = await supabase.from('cost_items').select('*');
+  console.log('Itens de Custo:', items?.length, iErr);
+}
+
+check().catch(console.error);
+</file>
+
 <file path="drizzle.config.ts">
 import { defineConfig } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
@@ -8311,6 +8499,239 @@ ALTER TABLE "projects" ADD CONSTRAINT "projects_client_id_clients_id_fk" FOREIGN
 }
 </file>
 
+<file path="index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="metadata.json">
+{
+  "name": "Arreda ERP",
+  "description": "",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
+</file>
+
+<file path="README.md">
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
+
+# Run and deploy your AI Studio app
+
+This contains everything you need to run your app locally.
+
+View your app in AI Studio: https://ai.studio/apps/85f55a79-4300-4782-a9db-707599d56e8d
+
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
+</file>
+
+<file path="seed.ts">
+import { createClient } from '@supabase/supabase-js';
+import { v4 as uuidv4 } from 'uuid';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+async function seed() {
+  console.log('🌱 Iniciando criação de dados de teste no Supabase...');
+
+  // 1. Clients
+  const client1 = { id: uuidv4(), name: 'Nike Brasil', cnpj_cpf: '11.111.111/0001-11' };
+  const client2 = { id: uuidv4(), name: 'Coca Cola', cnpj_cpf: '22.222.222/0001-22' };
+  
+  await supabase.from('clients').insert([client1, client2]);
+  console.log('✅ Clientes criados');
+
+  // 2. Professionals
+  await supabase.from('professionals').insert([
+    { id: uuidv4(), name: 'João Diretor', role: 'Diretor de Cena', pix: 'joao@pix.com', daily_rate: 1500 },
+    { id: uuidv4(), name: 'Maria Câmera', role: 'Op. de Câmera', pix: '11999999999', daily_rate: 800 },
+    { id: uuidv4(), name: 'Carlos Edição', role: 'Editor Sênior', pix: 'carlos@pix.com', daily_rate: 600 }
+  ]);
+  console.log('✅ Profissionais criados');
+
+  // 3. Equipment
+  await supabase.from('equipment').insert([
+    { id: uuidv4(), name: 'Sony FX3 Full Kit', category: 'Câmera', rental_value: 450 },
+    { id: uuidv4(), name: 'Lente G-Master 24-70mm', category: 'Lente', rental_value: 150 },
+    { id: uuidv4(), name: 'Kit Iluminação Aputure', category: 'Luz', rental_value: 300 }
+  ]);
+  console.log('✅ Equipamentos criados');
+
+  // 4. Templates
+  const template1Id = uuidv4();
+  const templateData = {
+    defaultTax: 18,
+    defaultMargin: 20,
+    groups: [
+      {
+        id: uuidv4(),
+        name: 'Equipe de Produção',
+        margin: 20,
+        items: [
+          { id: uuidv4(), role: 'Diretor de Fotografia', name: '', unitCost: 1200, quantity: 1, days: 1, tax: 18, inHouse: false },
+          { id: uuidv4(), role: 'Op. de Áudio', name: '', unitCost: 600, quantity: 1, days: 1, tax: 18, inHouse: false }
+        ]
+      },
+      {
+        id: uuidv4(),
+        name: 'Pós-Produção',
+        margin: 30,
+        items: [
+          { id: uuidv4(), role: 'Edição e Color', name: 'Arreda Interno', unitCost: 0, quantity: 1, days: 3, tax: 18, inHouse: true }
+        ]
+      }
+    ]
+  };
+
+  await supabase.from('templates').insert([
+    { id: template1Id, name: '📹 Vídeo Institucional Padrão', data: templateData }
+  ]);
+  console.log('✅ Templates criados');
+
+  // 5. Projects
+  const projectId = uuidv4();
+  const versionId = uuidv4();
+
+  await supabase.from('projects').insert({
+    id: projectId,
+    title: 'Campanha de Verão 2026',
+    client_id: client1.id,
+    status: 'Aprovado'
+  });
+
+  await supabase.from('project_versions').insert({
+    id: versionId,
+    project_id: projectId,
+    name: 'V1',
+    default_tax: templateData.defaultTax,
+    default_margin: templateData.defaultMargin
+  });
+
+  for (const g of templateData.groups) {
+    await supabase.from('cost_groups').insert({
+        id: g.id,
+        version_id: versionId,
+        name: g.name,
+        margin: g.margin
+    });
+    
+    const itemsToInsert = g.items.map(i => ({
+        id: i.id,
+        group_id: g.id,
+        role: i.role,
+        name: i.name,
+        quantity: i.quantity,
+        days: i.days,
+        unit_cost: i.unitCost,
+        tax: i.tax,
+        in_house: i.inHouse
+    }));
+    await supabase.from('cost_items').insert(itemsToInsert);
+  }
+  console.log('✅ Orçamento gerado a partir do template');
+
+  console.log('🎉 Dados de teste criados com sucesso!');
+}
+
+seed().catch(console.error);
+</file>
+
+<file path="src/components/CreateProjectModal.tsx">
+import React from 'react';
+import { X, FilePlus, Copy } from 'lucide-react';
+import { Template } from '../types';
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  templates: Template[];
+  onCreateBlank: () => void;
+  onCreateFromTemplate: (template: Template) => void;
+}
+
+export const CreateProjectModal: React.FC<Props> = ({ isOpen, onClose, templates, onCreateBlank, onCreateFromTemplate }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-lg bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl p-6 text-gray-900 dark:text-gray-100 max-h-[80vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-semibold">Novo Orçamento</h3>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <button 
+            onClick={onCreateBlank}
+            className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#ff6b00] dark:hover:border-[#ff6b00] rounded-xl hover:bg-[#ff6b00]/5 dark:hover:bg-[#ff6b00]/10 transition-all group"
+          >
+            <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#ff6b00]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#ff6b00] transition-colors">
+              <FilePlus size={24} />
+            </div>
+            <div>
+              <h4 className="font-semibold text-lg">Começar do Zero</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Criar um projeto em branco sem itens pré-definidos.</p>
+            </div>
+          </button>
+
+          {templates.length > 0 && (
+            <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+              <h4 className="font-medium text-sm text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">Ou escolha um Template</h4>
+              <div className="space-y-3">
+                {templates.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => onCreateFromTemplate(t)}
+                    className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#ff6b00] dark:hover:border-[#ff6b00] rounded-xl hover:bg-[#ff6b00]/5 dark:hover:bg-[#ff6b00]/10 transition-all group"
+                  >
+                    <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#ff6b00]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#ff6b00] transition-colors">
+                      <Copy size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-md">{t.name}</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t.data.groups?.length || 0} grupos de custo pré-definidos</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+</file>
+
 <file path="src/components/ExampleForm.tsx">
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
@@ -8432,6 +8853,93 @@ export function ProtectedRoute() {
   return <Outlet />;
   */
 }
+</file>
+
+<file path="src/context/ModalContext.tsx">
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+
+interface ModalState {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel?: () => void;
+}
+
+interface ModalContextType {
+  openModal: (options: Omit<ModalState, 'isOpen' | 'onCancel'> & { onCancel?: () => void }) => void;
+  closeModal: () => void;
+}
+
+const ModalContext = createContext<ModalContextType | undefined>(undefined);
+
+export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [modalState, setModalState] = useState<ModalState>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const closeModal = useCallback(() => {
+    setModalState(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const openModal = useCallback((options: Omit<ModalState, 'isOpen'>) => {
+    setModalState({
+      ...options,
+      isOpen: true,
+      onConfirm: () => {
+        options.onConfirm();
+        closeModal();
+      },
+      onCancel: () => {
+        if (options.onCancel) options.onCancel();
+        closeModal();
+      }
+    });
+  }, [closeModal]);
+
+  return (
+    <ModalContext.Provider value={{ openModal, closeModal }}>
+      {children}
+      {modalState.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div
+            className="w-full max-w-md bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl p-6 text-gray-900 dark:text-gray-100 animate-in zoom-in-95 duration-200"
+          >
+            <h3 className="text-xl font-semibold mb-2">{modalState.title}</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{modalState.message}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={modalState.onCancel || closeModal}
+                className="px-4 py-2 font-medium bg-gray-100/50 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
+              >
+                {modalState.cancelText || 'Cancelar'}
+              </button>
+              <button
+                type="button"
+                onClick={modalState.onConfirm}
+                className="px-4 py-2 font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors cursor-pointer"
+              >
+                {modalState.confirmText || 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </ModalContext.Provider>
+  );
+};
+
+export const useModal = () => {
+  const context = useContext(ModalContext);
+  if (!context) throw new Error('useModal must be used within ModalProvider');
+  return context;
+};
 </file>
 
 <file path="src/db/index.ts">
@@ -8558,7 +9066,7 @@ describe('Cálculos Financeiros de Orçamentos', () => {
       days: 1,
       unitCost: 0,
       tax: 0,
-      is_in_house: false,
+      isInHouse: false,
       category: 'Equipe',
       ...item,
     })) as CostItem[],
@@ -8621,6 +9129,7 @@ describe('Cálculos Financeiros de Orçamentos', () => {
 
 <file path="src/lib/project-utils.ts">
 import { Project } from '../types';
+import { calculateProjectTotals } from './calculations';
 
 export const calculateFinancials = (project: Project) => {
   const activeVersion = project.versions?.find(v => v.isActive) || project.versions?.[0];
@@ -8628,41 +9137,48 @@ export const calculateFinancials = (project: Project) => {
     return { total: 0, profit$: 0, tax$: 0, profitPercent: 0, taxPercent: 0, title: project.title, client: project.client, dates: project.recordingDates || [] };
   }
 
-  let totalCusto = 0;
-  let totalVendaSemImposto = 0;
-
-  activeVersion.groups.forEach(group => {
-    if (group.isActive === false) return;
-    let groupCost = 0;
-    group.items?.forEach(item => {
-      // Cálculo: Custo * Qtd * Dias
-      groupCost += (Number(item.unitCost) || 0) * (Number(item.quantity) || 1) * (Number(item.days) || 1);
-    });
-    totalCusto += groupCost;
-    
-    const margin = group.margin !== undefined ? group.margin : (activeVersion.defaultMargin || 0);
-    // Venda do grupo = Custo / (1 - Margem/100)
-    totalVendaSemImposto += margin < 100 ? groupCost / (1 - (margin / 100)) : groupCost;
-  });
-
-  const taxPercent = activeVersion.defaultTax || 0;
-  // Total Final = Venda Sem Imposto / (1 - Imposto/100)
-  const totalFinal = taxPercent < 100 ? totalVendaSemImposto / (1 - (taxPercent / 100)) : totalVendaSemImposto;
-  
-  const taxAmount = totalFinal - totalVendaSemImposto;
-  const profitAmount = totalFinal - totalCusto - taxAmount;
+  const totals = calculateProjectTotals(activeVersion);
 
   return {
-    total: totalFinal,
-    profit$: profitAmount,
-    tax$: taxAmount,
+    total: totals.totalProposta,
+    profit$: totals.totalProfit,
+    tax$: totals.totalTax,
     profitPercent: activeVersion.defaultMargin || 0,
-    taxPercent: taxPercent,
+    taxPercent: activeVersion.defaultTax || 0,
     title: project.title,
     client: project.client,
     dates: project.recordingDates || []
   };
 };
+</file>
+
+<file path="src/lib/utils.ts">
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value);
+}
+</file>
+
+<file path="src/main.tsx">
+import {StrictMode} from 'react';
+import {createRoot} from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
 </file>
 
 <file path="src/pages/Calendario.tsx">
@@ -9585,6 +10101,56 @@ export const deleteProjectVersion = async (id: string) => {
 };
 </file>
 
+<file path="src/services/googleDrive.ts">
+/**
+ * googleDrive.ts
+ * 
+ * Este serviço gerenciará a integração via OAuth2 com o Google Drive para:
+ * - Autenticar o usuário
+ * - Fazer upload/download de orçamentos e assets
+ * - Sincronizar dados entre os ambientes
+ */
+
+// TODO: Configurar Google OAuth Client ID no console do Google Cloud e salvar no .env
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
+/**
+ * Função placeholder para iniciar o fluxo OAuth2.
+ */
+export const authenticateGoogle = async () => {
+  if (!GOOGLE_CLIENT_ID) {
+    console.warn('⚠️ Google Client ID não configurado.');
+    return null;
+  }
+  
+  console.log('Iniciando fluxo de autenticação com o Google...');
+  // Implementação futura do fluxo OAuth2
+  return true;
+};
+
+/**
+ * Função placeholder para upload de arquivos no Google Drive.
+ */
+export const uploadToDrive = async (file: File, folderId?: string) => {
+  console.log(`Fazendo upload do arquivo ${file.name} para a pasta ${folderId || 'raiz'}`);
+  // Implementação futura do upload via Google Drive API
+};
+</file>
+
+<file path="src/services/supabase.ts">
+import { createClient } from '@supabase/supabase-js';
+
+// As credenciais devem ser configuradas no arquivo .env
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('⚠️ Credenciais do Supabase não encontradas. Certifique-se de configurar o arquivo .env');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+</file>
+
 <file path="src/utils/generateMockData.ts">
 import { supabase } from '../services/supabase';
 import { v4 as uuidv4 } from 'uuid';
@@ -9663,6 +10229,163 @@ export const injectTestData = async () => {
 };
 </file>
 
+<file path="src/vite-env.d.ts">
+/// <reference types="vite/client" />
+</file>
+
+<file path="supabase/migrations/01_initial_schema.sql">
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ==========================================
+-- DROP EXISTING TABLES TO PREVENT CONFLICTS
+-- ==========================================
+DROP TABLE IF EXISTS cost_items CASCADE;
+DROP TABLE IF EXISTS cost_groups CASCADE;
+DROP TABLE IF EXISTS project_versions CASCADE;
+DROP TABLE IF EXISTS projects CASCADE;
+DROP TABLE IF EXISTS clients CASCADE;
+DROP TABLE IF EXISTS professionals CASCADE;
+DROP TABLE IF EXISTS equipment CASCADE;
+DROP TABLE IF EXISTS templates CASCADE;
+
+-- ==========================================
+-- 1. CLIENTS (Contatos / Contas)
+-- ==========================================
+CREATE TABLE clients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    cnpj_cpf VARCHAR(20),
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- 2. PROJECTS (Orçamentos / Projetos principais)
+-- ==========================================
+-- Status pode ser 'Pendente', 'Aprovado', 'Concluído'
+CREATE TABLE projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+    status VARCHAR(50) DEFAULT 'Pendente',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- 3. PROJECT VERSIONS (Versões do Orçamento)
+-- ==========================================
+CREATE TABLE project_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL, -- Ex: 'V1', 'V2'
+    date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    default_tax NUMERIC(5,2) DEFAULT 10.0,
+    default_margin NUMERIC(5,2) DEFAULT 15.0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- 4. COST GROUPS (Grupos de Custos dentro da Versão)
+-- ==========================================
+CREATE TABLE cost_groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version_id UUID NOT NULL REFERENCES project_versions(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    margin NUMERIC(5,2), -- Pode herdar do default_margin se for nulo
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- 5. COST ITEMS (Itens de Custo)
+-- ==========================================
+CREATE TABLE cost_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    group_id UUID NOT NULL REFERENCES cost_groups(id) ON DELETE CASCADE,
+    role VARCHAR(255),
+    name VARCHAR(255) NOT NULL,
+    quantity NUMERIC(10,2) DEFAULT 1,
+    days NUMERIC(10,2) DEFAULT 1,
+    unit_cost NUMERIC(15,2) DEFAULT 0,
+    tax NUMERIC(5,2) DEFAULT 0,
+    in_house BOOLEAN DEFAULT FALSE,
+    executed_cost NUMERIC(15,2),
+    receipt_link TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- 6. ASSETS & PROFESSIONALS (Recursos da Produtora)
+-- ==========================================
+CREATE TABLE professionals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    role VARCHAR(255),
+    pix VARCHAR(255),
+    daily_rate NUMERIC(15,2) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE equipment (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(255),
+    rental_value NUMERIC(15,2) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- 7. TEMPLATES (Modelos pré-salvos)
+-- ==========================================
+CREATE TABLE templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    data JSONB NOT NULL, -- Armazena a estrutura JSON inteira (groups, taxes) para instanciar projetos rápidos
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- ROW LEVEL SECURITY (RLS) BASICS
+-- ==========================================
+-- Aqui ativamos RLS em todas as tabelas principais para garantir que as queries passem pela policy.
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cost_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cost_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE professionals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
+
+-- DROP POLICIES IF EXIST BEFORE CREATING (Para evitar erro caso rodando múltiplas vezes)
+DROP POLICY IF EXISTS "Allow All for Authenticated" ON clients;
+DROP POLICY IF EXISTS "Allow All for Authenticated" ON projects;
+DROP POLICY IF EXISTS "Allow All for Authenticated" ON project_versions;
+DROP POLICY IF EXISTS "Allow All for Authenticated" ON cost_groups;
+DROP POLICY IF EXISTS "Allow All for Authenticated" ON cost_items;
+DROP POLICY IF EXISTS "Allow All for Authenticated" ON professionals;
+DROP POLICY IF EXISTS "Allow All for Authenticated" ON equipment;
+DROP POLICY IF EXISTS "Allow All for Authenticated" ON templates;
+
+-- Exemplo: Permitir acesso total temporário (Atenção: em prod usar auth.uid() para segregar tenants)
+CREATE POLICY "Allow All for Authenticated" ON clients FOR ALL USING (true);
+CREATE POLICY "Allow All for Authenticated" ON projects FOR ALL USING (true);
+CREATE POLICY "Allow All for Authenticated" ON project_versions FOR ALL USING (true);
+CREATE POLICY "Allow All for Authenticated" ON cost_groups FOR ALL USING (true);
+CREATE POLICY "Allow All for Authenticated" ON cost_items FOR ALL USING (true);
+CREATE POLICY "Allow All for Authenticated" ON professionals FOR ALL USING (true);
+CREATE POLICY "Allow All for Authenticated" ON equipment FOR ALL USING (true);
+CREATE POLICY "Allow All for Authenticated" ON templates FOR ALL USING (true);
+</file>
+
+<file path="supabase/migrations/02_add_active_status.sql">
+-- Migration to add is_active column to cost_groups
+ALTER TABLE cost_groups ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+</file>
+
 <file path="supabase/migrations/03_add_rls_and_auth_fields.sql">
 -- ==========================================
 -- 1. ADD USER_ID AND FINANCIAL FIELDS
@@ -9735,83 +10458,60 @@ CREATE POLICY "Users can manage their own templates" ON templates
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 </file>
 
-<file path=".env.example">
-# GEMINI_API_KEY: Required for Gemini AI API calls.
-# AI Studio automatically injects this at runtime from user secrets.
-# Users configure this via the Secrets panel in the AI Studio UI.
-GEMINI_API_KEY="MY_GEMINI_API_KEY"
-
-# APP_URL: The URL where this applet is hosted.
-# AI Studio automatically injects this at runtime with the Cloud Run service URL.
-# Used for self-referential links, OAuth callbacks, and API endpoints.
-APP_URL="MY_APP_URL"
-</file>
-
-<file path=".gitignore">
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
-*.log
-.env*
-!.env.example
-</file>
-
-<file path="check_db.ts">
-import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-async function check() {
-  console.log('Buscando dados...');
-  const { data: clients, error: cErr } = await supabase.from('clients').select('*');
-  console.log('Clientes:', clients?.length, cErr);
-
-  const { data: projects, error: pErr } = await supabase.from('projects').select('*');
-  console.log('Projetos:', projects?.length, pErr);
-
-  const { data: profs, error: profErr } = await supabase.from('professionals').select('*');
-  console.log('Profissionais:', profs?.length, profErr);
-
-  const { data: groups, error: gErr } = await supabase.from('cost_groups').select('*');
-  console.log('Grupos de Custo:', groups?.length, gErr);
-
-  const { data: items, error: iErr } = await supabase.from('cost_items').select('*');
-  console.log('Itens de Custo:', items?.length, iErr);
-}
-
-check().catch(console.error);
-</file>
-
-<file path="index.html">
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
-</file>
-
-<file path="metadata.json">
+<file path="tsconfig.json">
 {
-  "name": "Arreda ERP",
-  "description": "",
-  "requestFramePermissions": [],
-  "majorCapabilities": []
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  }
 }
+</file>
+
+<file path="vite.config.ts">
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import {defineConfig, loadEnv} from 'vite';
+
+export default defineConfig(({mode}) => {
+  const env = loadEnv(mode, '.', '');
+  return {
+    plugins: [react(), tailwindcss()],
+    define: {
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, '.'),
+      },
+    },
+    server: {
+      // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      hmr: process.env.DISABLE_HMR !== 'true',
+    },
+  };
+});
 </file>
 
 <file path="package.json">
@@ -9822,6 +10522,7 @@ check().catch(console.error);
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev:vercel": "npx vercel dev",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -9836,7 +10537,7 @@ check().catch(console.error);
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.2",
-    "express": "^4.21.2",
+    "formidable": "^3.5.4",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.0",
@@ -9848,158 +10549,26 @@ check().catch(console.error);
     "vite": "^6.2.0"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/formidable": "^3.5.1",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.14.0",
     "@types/uuid": "^10.0.0",
+    "@vercel/node": "^5.8.1",
     "autoprefixer": "^10.4.21",
+    "cors": "^2.8.6",
     "drizzle-kit": "^0.31.10",
+    "express": "^5.2.1",
+    "googleapis": "^171.4.0",
+    "multer": "^2.1.1",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "vitest": "^4.1.6"
   }
 }
-</file>
-
-<file path="README.md">
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/85f55a79-4300-4782-a9db-707599d56e8d
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
-</file>
-
-<file path="seed.ts">
-import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-async function seed() {
-  console.log('🌱 Iniciando criação de dados de teste no Supabase...');
-
-  // 1. Clients
-  const client1 = { id: uuidv4(), name: 'Nike Brasil', cnpj_cpf: '11.111.111/0001-11' };
-  const client2 = { id: uuidv4(), name: 'Coca Cola', cnpj_cpf: '22.222.222/0001-22' };
-  
-  await supabase.from('clients').insert([client1, client2]);
-  console.log('✅ Clientes criados');
-
-  // 2. Professionals
-  await supabase.from('professionals').insert([
-    { id: uuidv4(), name: 'João Diretor', role: 'Diretor de Cena', pix: 'joao@pix.com', daily_rate: 1500 },
-    { id: uuidv4(), name: 'Maria Câmera', role: 'Op. de Câmera', pix: '11999999999', daily_rate: 800 },
-    { id: uuidv4(), name: 'Carlos Edição', role: 'Editor Sênior', pix: 'carlos@pix.com', daily_rate: 600 }
-  ]);
-  console.log('✅ Profissionais criados');
-
-  // 3. Equipment
-  await supabase.from('equipment').insert([
-    { id: uuidv4(), name: 'Sony FX3 Full Kit', category: 'Câmera', rental_value: 450 },
-    { id: uuidv4(), name: 'Lente G-Master 24-70mm', category: 'Lente', rental_value: 150 },
-    { id: uuidv4(), name: 'Kit Iluminação Aputure', category: 'Luz', rental_value: 300 }
-  ]);
-  console.log('✅ Equipamentos criados');
-
-  // 4. Templates
-  const template1Id = uuidv4();
-  const templateData = {
-    defaultTax: 18,
-    defaultMargin: 20,
-    groups: [
-      {
-        id: uuidv4(),
-        name: 'Equipe de Produção',
-        margin: 20,
-        items: [
-          { id: uuidv4(), role: 'Diretor de Fotografia', name: '', unitCost: 1200, quantity: 1, days: 1, tax: 18, inHouse: false },
-          { id: uuidv4(), role: 'Op. de Áudio', name: '', unitCost: 600, quantity: 1, days: 1, tax: 18, inHouse: false }
-        ]
-      },
-      {
-        id: uuidv4(),
-        name: 'Pós-Produção',
-        margin: 30,
-        items: [
-          { id: uuidv4(), role: 'Edição e Color', name: 'Arreda Interno', unitCost: 0, quantity: 1, days: 3, tax: 18, inHouse: true }
-        ]
-      }
-    ]
-  };
-
-  await supabase.from('templates').insert([
-    { id: template1Id, name: '📹 Vídeo Institucional Padrão', data: templateData }
-  ]);
-  console.log('✅ Templates criados');
-
-  // 5. Projects
-  const projectId = uuidv4();
-  const versionId = uuidv4();
-
-  await supabase.from('projects').insert({
-    id: projectId,
-    title: 'Campanha de Verão 2026',
-    client_id: client1.id,
-    status: 'Aprovado'
-  });
-
-  await supabase.from('project_versions').insert({
-    id: versionId,
-    project_id: projectId,
-    name: 'V1',
-    default_tax: templateData.defaultTax,
-    default_margin: templateData.defaultMargin
-  });
-
-  for (const g of templateData.groups) {
-    await supabase.from('cost_groups').insert({
-        id: g.id,
-        version_id: versionId,
-        name: g.name,
-        margin: g.margin
-    });
-    
-    const itemsToInsert = g.items.map(i => ({
-        id: i.id,
-        group_id: g.id,
-        role: i.role,
-        name: i.name,
-        quantity: i.quantity,
-        days: i.days,
-        unit_cost: i.unitCost,
-        tax: i.tax,
-        in_house: i.inHouse
-    }));
-    await supabase.from('cost_items').insert(itemsToInsert);
-  }
-  console.log('✅ Orçamento gerado a partir do template');
-
-  console.log('🎉 Dados de teste criados com sucesso!');
-}
-
-seed().catch(console.error);
 </file>
 
 <file path="src/App.tsx">
@@ -10050,75 +10619,6 @@ export default function App() {
     </AppProvider>
   );
 }
-</file>
-
-<file path="src/components/CreateProjectModal.tsx">
-import React from 'react';
-import { X, FilePlus, Copy } from 'lucide-react';
-import { Template } from '../types';
-
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  templates: Template[];
-  onCreateBlank: () => void;
-  onCreateFromTemplate: (template: Template) => void;
-}
-
-export const CreateProjectModal: React.FC<Props> = ({ isOpen, onClose, templates, onCreateBlank, onCreateFromTemplate }) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl p-6 text-gray-900 dark:text-gray-100 max-h-[80vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold">Novo Orçamento</h3>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <button 
-            onClick={onCreateBlank}
-            className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#ff6b00] dark:hover:border-[#ff6b00] rounded-xl hover:bg-[#ff6b00]/5 dark:hover:bg-[#ff6b00]/10 transition-all group"
-          >
-            <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#ff6b00]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#ff6b00] transition-colors">
-              <FilePlus size={24} />
-            </div>
-            <div>
-              <h4 className="font-semibold text-lg">Começar do Zero</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Criar um projeto em branco sem itens pré-definidos.</p>
-            </div>
-          </button>
-
-          {templates.length > 0 && (
-            <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-              <h4 className="font-medium text-sm text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">Ou escolha um Template</h4>
-              <div className="space-y-3">
-                {templates.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => onCreateFromTemplate(t)}
-                    className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#ff6b00] dark:hover:border-[#ff6b00] rounded-xl hover:bg-[#ff6b00]/5 dark:hover:bg-[#ff6b00]/10 transition-all group"
-                  >
-                    <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#ff6b00]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#ff6b00] transition-colors">
-                      <Copy size={24} />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-md">{t.name}</h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{t.data.groups?.length || 0} grupos de custo pré-definidos</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
 </file>
 
 <file path="src/components/Layout.tsx">
@@ -10450,7 +10950,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     
     try {
-      // 3. Chamada ao Banco (Background)
+      // 3. Chamada ao Banco (Background, silenciosa)
       const dbUpdates: any = {};
       if (updates.title) dbUpdates.title = updates.title;
       if (updates.status) dbUpdates.status = updates.status;
@@ -10460,12 +10960,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if ('endDate' in updates) dbUpdates.endDate = updates.endDate || null;
       if ('recordingDates' in updates) dbUpdates.recordingDates = updates.recordingDates;
 
-      const updatedProject = await dbService.updateProject(id, dbUpdates);
-      console.log("3. Retorno do BD:", updatedProject);
-      
-      if (updatedProject) {
-        setProjects(prev => prev.map(p => p.id === id ? updatedProject : p));
-      }
+      await dbService.updateProject(id, dbUpdates);
     } catch (error) {
       // 4. Rollback em caso de falha
       console.error("ERRO NEON DB:", error);
@@ -10566,19 +11061,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     try {
-        // 3. Chamada ao Banco
+        // 3. Chamada ao Banco (Background, silenciosa)
         const project = previousProjects.find(p => p.id === projectId);
         const prevVersion = project?.versions.find(v => v.id === versionId);
         
         if (!prevVersion) throw new Error("Versão não encontrada para sincronização.");
         
         const updatedVersion = { ...prevVersion, ...updates } as ProjectVersion;
-        const updatedProject = await dbService.syncVersionWithDb(updatedVersion);
-        console.log("3. Retorno do BD (Version):", updatedProject);
-        
-        if (updatedProject) {
-            setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
-        }
+        await dbService.syncVersionWithDb(updatedVersion);
     } catch (error) {
         // 4. Rollback
         console.error('Erro ao atualizar versão:', error);
@@ -10784,93 +11274,6 @@ export const useAppContext = () => {
 };
 </file>
 
-<file path="src/context/ModalContext.tsx">
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
-
-interface ModalState {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  onConfirm: () => void;
-  onCancel?: () => void;
-}
-
-interface ModalContextType {
-  openModal: (options: Omit<ModalState, 'isOpen' | 'onCancel'> & { onCancel?: () => void }) => void;
-  closeModal: () => void;
-}
-
-const ModalContext = createContext<ModalContextType | undefined>(undefined);
-
-export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [modalState, setModalState] = useState<ModalState>({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: () => {},
-  });
-
-  const closeModal = useCallback(() => {
-    setModalState(prev => ({ ...prev, isOpen: false }));
-  }, []);
-
-  const openModal = useCallback((options: Omit<ModalState, 'isOpen'>) => {
-    setModalState({
-      ...options,
-      isOpen: true,
-      onConfirm: () => {
-        options.onConfirm();
-        closeModal();
-      },
-      onCancel: () => {
-        if (options.onCancel) options.onCancel();
-        closeModal();
-      }
-    });
-  }, [closeModal]);
-
-  return (
-    <ModalContext.Provider value={{ openModal, closeModal }}>
-      {children}
-      {modalState.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div
-            className="w-full max-w-md bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl p-6 text-gray-900 dark:text-gray-100 animate-in zoom-in-95 duration-200"
-          >
-            <h3 className="text-xl font-semibold mb-2">{modalState.title}</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">{modalState.message}</p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={modalState.onCancel || closeModal}
-                className="px-4 py-2 font-medium bg-gray-100/50 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
-              >
-                {modalState.cancelText || 'Cancelar'}
-              </button>
-              <button
-                type="button"
-                onClick={modalState.onConfirm}
-                className="px-4 py-2 font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors cursor-pointer"
-              >
-                {modalState.confirmText || 'Confirmar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </ModalContext.Provider>
-  );
-};
-
-export const useModal = () => {
-  const context = useContext(ModalContext);
-  if (!context) throw new Error('useModal must be used within ModalProvider');
-  return context;
-};
-</file>
-
 <file path="src/index.css">
 @import "tailwindcss";
 
@@ -11036,11 +11439,11 @@ export interface VersionTotals {
  */
 
 export function getItemMetrics(item: CostItem, groupMargin: number, defaultTax: number): ItemMetrics {
-  const margin = item.customMargin ?? groupMargin;
-  const taxRate = item.tax ?? defaultTax;
-  const isInHouse = item.isInHouse;
+  const margin = item.customMargin !== undefined ? item.customMargin : groupMargin;
+  const taxRate = item.tax !== undefined ? item.tax : defaultTax;
+  const isInHouse = item.isInHouse === true;
 
-  const baseCost = item.unitCost * item.quantity * (item.days || 1);
+  const baseCost = (item.unitCost || 0) * (item.quantity || 1) * (item.days || 1);
   const vendaValue = baseCost * (1 + (margin / 100));
   
   const profitValue = isInHouse ? vendaValue : (vendaValue - baseCost);
@@ -11087,8 +11490,6 @@ export function getGroupMetrics(group: CostGroup, defaultMargin: number, default
 export function calculateProjectTotals(version: ProjectVersion): VersionTotals {
   let totalCost = 0;
   let subtotal = 0;
-  let totalTax = 0;
-  let totalProposta = 0;
   let totalProfit = 0;
   let totalExecuted = 0;
 
@@ -11099,14 +11500,21 @@ export function calculateProjectTotals(version: ProjectVersion): VersionTotals {
     
     totalCost += metrics.totalCost;
     subtotal += metrics.totalVenda;
-    totalTax += metrics.totalTax;
-    totalProposta += metrics.totalProposta;
     totalProfit += metrics.totalProfit;
     
     group.items.forEach(item => {
       totalExecuted += item.executedCost || 0;
     });
   });
+
+  const taxRate = version.defaultTax || 0;
+  let totalProposta = subtotal;
+  
+  if (taxRate > 0 && taxRate < 100) {
+    totalProposta = subtotal / (1 - (taxRate / 100));
+  }
+  
+  const totalTax = totalProposta - subtotal;
 
   return {
     totalCost,
@@ -11118,35 +11526,6 @@ export function calculateProjectTotals(version: ProjectVersion): VersionTotals {
     lucroReal: subtotal - totalExecuted
   };
 }
-</file>
-
-<file path="src/lib/utils.ts">
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
-}
-</file>
-
-<file path="src/main.tsx">
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
 </file>
 
 <file path="src/pages/Dashboard.tsx">
@@ -11750,10 +12129,10 @@ export const Orcamentos: React.FC = () => {
 </file>
 
 <file path="src/pages/Planilha.tsx">
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Plus, Trash2, Home, Printer, Save, ArrowLeft, Link as LinkIcon, Copy, Info, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Home, Printer, Save, ArrowLeft, Link as LinkIcon, Copy, Info, X, UserPlus, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Check, Paperclip, Eye, Loader2, Lock } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useModal } from '../context/ModalContext';
 import { CostGroup, CostItem, Project, ProjectVersion } from '../types';
@@ -11764,7 +12143,7 @@ import { getItemMetrics, calculateProjectTotals, getGroupMetrics } from '../lib/
 export const Planilha: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, updateProject, updateProjectVersion, addProjectVersion, professionals, equipments, clientes, addTemplate, templates, editingTemplateId, setEditingTemplateId, updateTemplate, deleteProjectVersion, isVersionLoading, loadVersionData, clearVersionData } = useAppContext();
+  const { projects, updateProject, updateProjectVersion, addProjectVersion, professionals, equipments, clientes, addTemplate, templates, editingTemplateId, setEditingTemplateId, updateTemplate, deleteProjectVersion, isVersionLoading, loadVersionData, clearVersionData, addProfessional, addEquipment } = useAppContext();
   const { openModal } = useModal();
   
   const [project, setProject] = useState<Project | null>(null);
@@ -11776,6 +12155,63 @@ export const Planilha: React.FC = () => {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [newDate, setNewDate] = useState('');
+  const [resourceToSave, setResourceToSave] = useState<CostItem | null>(null);
+  const [isSavingResource, setIsSavingResource] = useState(false);
+  const [uploadingItemIds, setUploadingItemIds] = useState<Set<string>>(new Set());
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, groupId: string, itemId: string, itemName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Arquivo muito grande. O limite é 5MB.');
+      if (fileInputRefs.current[itemId]) fileInputRefs.current[itemId]!.value = '';
+      return;
+    }
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      alert('Formato não suportado. Envie PDF, JPG ou PNG.');
+      if (fileInputRefs.current[itemId]) fileInputRefs.current[itemId]!.value = '';
+      return;
+    }
+
+    setUploadingItemIds(prev => new Set(prev).add(itemId));
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('projectName', project?.title || 'Projeto_Sem_Nome');
+      formData.append('itemName', itemName);
+
+      const res = await fetch('/api/upload-drive', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        throw new Error('Servidor de API inativo. Para testar uploads localmente, rode o projeto usando \'npm run dev:vercel\' ou \'vercel dev\'.');
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro no upload');
+      }
+
+      handleUpdateItem(groupId, itemId, { receiptLink: data.url });
+      setToastMessage('Anexo salvo com sucesso!');
+    } catch (error: any) {
+      alert('Erro: ' + error.message);
+    } finally {
+      setUploadingItemIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+      if (fileInputRefs.current[itemId]) fileInputRefs.current[itemId]!.value = '';
+    }
+  };
 
   useEffect(() => {
     if (toastMessage) {
@@ -11784,37 +12220,58 @@ export const Planilha: React.FC = () => {
     }
   }, [toastMessage]);
 
-    const [isSaving, setIsSaving] = useState(false);
-    const saveProject = async () => {
-        if (project) {
-            setIsSaving(true);
-            try {
-                // Salva os metadados do projeto
-                await updateProject(project.id, {
-                  title: project.title,
-                  client: project.client,
-                  status: project.status,
-                  projectNumber: project.projectNumber
-                });
-                
-                // Salva apenas a versão ativa para evitar deletar dados de versões não carregadas
-                if (activeVersionId) {
-                  const activeVersion = project.versions.find(v => v.id === activeVersionId);
-                  if (activeVersion) {
-                    await updateProjectVersion(project.id, activeVersionId, activeVersion);
-                  }
-                }
-                
-                setIsDirty(false);
-                setToastMessage("Alterações salvas com sucesso!");
-            } catch (error) {
-                console.error("Erro ao salvar:", error);
-                setToastMessage("Erro ao salvar projeto.");
-            } finally {
-                setIsSaving(false);
-            }
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Refs para acessar estado mais recente dentro de callbacks assíncronos
+  const projectRef = useRef<Project | null>(null);
+  const activeVersionIdRef = useRef<string | null>(null);
+  projectRef.current = project;
+  activeVersionIdRef.current = activeVersionId;
+
+  // Função interna de persistência — sempre executa, independente de isSaving
+  const _persist = useCallback(async () => {
+    const currentProject = projectRef.current;
+    const currentVersionId = activeVersionIdRef.current;
+    if (!currentProject) return;
+
+    setIsSaving(true);
+    try {
+      await updateProject(currentProject.id, {
+        title: currentProject.title,
+        client: currentProject.client,
+        status: currentProject.status,
+        projectNumber: currentProject.projectNumber,
+        recordingDates: currentProject.recordingDates,
+        startDate: currentProject.startDate,
+        endDate: currentProject.endDate,
+      });
+
+      if (currentVersionId) {
+        const activeVer = currentProject.versions.find(v => v.id === currentVersionId);
+        if (activeVer) {
+          await updateProjectVersion(currentProject.id, currentVersionId, activeVer);
         }
-    };
+      }
+
+      setIsDirty(false);
+      setToastMessage('Alterações salvas com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      setToastMessage('Erro ao salvar projeto.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [updateProject, updateProjectVersion]);
+
+  // Botão manual: sempre força o salvamento
+  const saveProject = useCallback(() => _persist(), [_persist]);
+
+  // ── DEBOUNCE: aguarda 1500ms de pausa na digitação antes de persistir ──────
+  useEffect(() => {
+    if (!isDirty || isSaving) return;          // não enfileira se já há save em curso
+    const timer = setTimeout(() => _persist(), 1500);
+    return () => clearTimeout(timer);
+  }, [isDirty, project, _persist, isSaving]);
 
   // Carrega os dados da versão ativa sob demanda (Lazy Loading)
   useEffect(() => {
@@ -11891,33 +12348,100 @@ export const Planilha: React.FC = () => {
     };
   }, [activeVersion]);
 
-  if (!project || !activeVersion) return null;
+  // ── MÉTRICAS DE SAÚde FINANCEIRA (só relevante em modo de execução) ──
+  const healthMetrics = useMemo(() => {
+    if (!activeVersion) return { totalOverbudget: 0, realMarginPct: 0, breakEven: 0, overbudgetItems: 0 };
 
-  const handleProjectUpdate = async (updates: Partial<Project>) => {
-    if (!project) return;
-    const previous = { ...project };
-    setProject(prev => prev ? { ...prev, ...updates } : null);
-    
-    try {
-      await updateProject(project.id, updates);
-      setIsDirty(true);
-    } catch (error) {
-      console.error('Falha ao atualizar projeto:', error);
-      setProject(previous);
-    }
+    let totalOverbudget = 0;
+    let overbudgetItems = 0;
+
+    activeVersion.groups.forEach(group => {
+      if (group.isActive === false) return;
+      const groupMargin = group.margin !== undefined ? group.margin : activeVersion.defaultMargin;
+      group.items.forEach(item => {
+        if (!item.executedCost) return;
+        const baseCost = (item.unitCost || 0) * (item.quantity || 1) * (item.days || 1);
+        const diff = item.executedCost - baseCost;
+        if (diff > 0) {
+          totalOverbudget += diff;
+          overbudgetItems++;
+        }
+      });
+    });
+
+    const realMarginPct = globals.totalClient > 0
+      ? (globals.lucroReal / globals.totalClient) * 100
+      : 0;
+
+    const breakEven = globals.totalCost + globals.totalTax;
+
+    return { totalOverbudget, realMarginPct, breakEven, overbudgetItems };
+  }, [activeVersion, globals]);
+
+  // ── LISTA DE PAGAMENTOS (freelas/terceiros com PIX) ───────────────
+  const paymentList = useMemo(() => {
+    if (!activeVersion) return [];
+    const rows: {
+      id: string;
+      name: string;
+      role: string;
+      pix: string;
+      amount: number;
+    }[] = [];
+
+    activeVersion.groups.forEach(group => {
+      if (group.isActive === false) return;
+      group.items.forEach(item => {
+        if (item.isInHouse === true) return;          // só freelas/terceiros
+        const baseCost = (item.unitCost || 0) * (item.quantity || 1) * (item.days || 1);
+        const amount = (item.executedCost && item.executedCost > 0)
+          ? item.executedCost
+          : baseCost;
+        const prof = professionals.find(p => p.name === item.name);
+        rows.push({
+          id: item.id,
+          name: item.name || '—',
+          role: item.role || '—',
+          pix: prof?.pix || 'Não cadastrado',
+          amount,
+        });
+      });
+    });
+
+    return rows;
+  }, [activeVersion, professionals]);
+
+  const [copiedPixId, setCopiedPixId] = useState<string | null>(null);
+
+  const handleCopyPix = (itemId: string, pix: string) => {
+    if (pix === 'Não cadastrado') return;
+    navigator.clipboard.writeText(pix).then(() => {
+      setCopiedPixId(itemId);
+      setTimeout(() => setCopiedPixId(null), 2000);
+    });
   };
 
+  if (!project || !activeVersion) return null;
+
+  // Atualiza apenas o rascunho local; o debounce persiste no banco
+  const handleProjectUpdate = (updates: Partial<Project>) => {
+    if (!project) return;
+    setProject(prev => prev ? { ...prev, ...updates } : null);
+    setIsDirty(true);
+  };
+
+  // Atualiza apenas o rascunho local; o debounce persiste no banco
   const handleVersionUpdate = (updates: Partial<ProjectVersion>) => {
-    if (activeVersionId && project) {
-      setProject(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          versions: prev.versions.map(v => v.id === activeVersionId ? { ...v, ...updates } : v)
-        };
-      });
-      updateProjectVersion(project.id, activeVersionId, updates);
-    }
+    if (!activeVersionId || !project) return;
+    setProject(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        versions: prev.versions.map(v =>
+          v.id === activeVersionId ? { ...v, ...updates } : v
+        ),
+      };
+    });
     setIsDirty(true);
   };
 
@@ -11931,10 +12455,8 @@ export const Planilha: React.FC = () => {
     openModal({
       title: 'Excluir Categoria',
       message: 'Tem certeza que deseja excluir esta categoria e todos os seus itens?',
-      onConfirm: () => {
-        handleVersionUpdate({ groups: activeVersion.groups.filter(g => g.id !== groupId) });
-        setIsDirty(true);
-      }
+      onConfirm: () =>
+        handleVersionUpdate({ groups: activeVersion.groups.filter(g => g.id !== groupId) })
     });
   };
 
@@ -11952,7 +12474,6 @@ export const Planilha: React.FC = () => {
     handleVersionUpdate({
       groups: activeVersion.groups.map(g => g.id === groupId ? { ...g, items: [...g.items, newItem] } : g)
     });
-    setIsDirty(true);
   };
 
   const handleUpdateItem = (groupId: string, itemId: string, updates: Partial<CostItem>) => {
@@ -11981,19 +12502,18 @@ export const Planilha: React.FC = () => {
         };
       })
     });
-    setIsDirty(true);
   };
 
   const handleDeleteItem = (groupId: string, itemId: string) => {
     openModal({
       title: 'Excluir Item',
       message: 'Confirma a exclusão deste item?',
-      onConfirm: () => {
+      onConfirm: () =>
         handleVersionUpdate({
-          groups: activeVersion.groups.map(g => g.id === groupId ? { ...g, items: g.items.filter(i => i.id !== itemId) } : g)
-        });
-        setIsDirty(true);
-      }
+          groups: activeVersion.groups.map(g =>
+            g.id === groupId ? { ...g, items: g.items.filter(i => i.id !== itemId) } : g
+          )
+        })
     });
   };
 
@@ -12481,7 +13001,10 @@ export const Planilha: React.FC = () => {
                             <th className="py-4 px-4 w-20 text-center">Dias</th>
                             <th className="py-4 px-4 w-40 text-right">Valor Venda</th>
                             {showFinancialControl && (
-                              <th className="py-4 px-4 w-32 bg-yellow-50/30 dark:bg-yellow-950/5">Executado</th>
+                              <>
+                                <th className="py-4 px-4 w-32 bg-yellow-50/30 dark:bg-yellow-950/5 text-right">Executado</th>
+                                <th className="py-4 px-4 w-24 text-center">Anexo</th>
+                              </>
                             )}
                             <th className="py-4 px-2 w-10"></th>
                           </tr>
@@ -12504,7 +13027,33 @@ export const Planilha: React.FC = () => {
                                     <input type="text" value={item.role || ''} onChange={e => handleUpdateItem(group.id, item.id, { role: e.target.value })} className="w-full bg-transparent outline-none font-medium text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-300" placeholder="Diretor de Arte..." />
                                 </td>
                                 <td className="py-3 px-4">
-                                    <input type="text" list="lista-banco-recursos" value={item.name} onChange={e => handleUpdateItem(group.id, item.id, { name: e.target.value })} className="w-full bg-transparent outline-none font-bold text-zinc-900 dark:text-white" />
+                                  {(() => {
+                                    const isUnregistered =
+                                      item.name.trim() !== '' &&
+                                      !professionals.some(p => p.name === item.name) &&
+                                      !equipments.some(e => e.name === item.name);
+                                    return (
+                                      <div className="relative flex items-center gap-1 group/name">
+                                        <input
+                                          type="text"
+                                          list="lista-banco-recursos"
+                                          value={item.name}
+                                          onChange={e => handleUpdateItem(group.id, item.id, { name: e.target.value })}
+                                          className="w-full bg-transparent outline-none font-bold text-zinc-900 dark:text-white"
+                                        />
+                                        {isUnregistered && (
+                                          <button
+                                            onClick={() => setResourceToSave(item)}
+                                            title={`Salvar "${item.name}" no banco`}
+                                            className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all opacity-0 group-hover/name:opacity-100 focus:opacity-100"
+                                          >
+                                            <UserPlus size={11} strokeWidth={2.5} />
+                                            <span className="text-[9px] font-black uppercase tracking-wider">Salvar</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </td>
                                 <td className="py-3 px-4 print:hidden text-right">
                                     <input type="number" value={item.unitCost || ''} onChange={e => handleUpdateItem(group.id, item.id, { unitCost: Number(e.target.value) })} className="w-full bg-transparent outline-none text-right font-mono text-zinc-500" placeholder="0.00" />
@@ -12524,9 +13073,59 @@ export const Planilha: React.FC = () => {
                                   </div>
                                 </td>
                                 {showFinancialControl && (
-                                  <td className="py-3 px-4 bg-yellow-50/20 dark:bg-yellow-950/5">
-                                    <input type="number" value={item.executedCost || ''} onChange={e => handleUpdateItem(group.id, item.id, { executedCost: Number(e.target.value) })} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-1 px-2 text-right font-mono" placeholder="0.00" />
-                                  </td>
+                                  <>
+                                    <td className={cn("py-3 px-4 transition-colors", project.status === 'Concluído' && item.executedCost && item.executedCost > 0 && !item.receiptLink ? "bg-yellow-50 dark:bg-yellow-900/20" : "bg-yellow-50/20 dark:bg-yellow-950/5")}>
+                                      <input type="number" value={item.executedCost || ''} onChange={e => handleUpdateItem(group.id, item.id, { executedCost: Number(e.target.value) })} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-1 px-2 text-right font-mono" placeholder="0.00" />
+                                    </td>
+                                    <td className={cn("py-3 px-4 text-center transition-colors", project.status === 'Concluído' && item.executedCost && item.executedCost > 0 && !item.receiptLink ? "bg-yellow-50 dark:bg-yellow-900/20" : "")}>
+                                      {project.status === 'Concluído' ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                          {item.receiptLink ? (
+                                            <>
+                                              <button 
+                                                onClick={() => window.open(item.receiptLink, '_blank')}
+                                                className="p-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-500 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
+                                                title="Ver anexo"
+                                              >
+                                                <Eye size={16} />
+                                              </button>
+                                              <button 
+                                                onClick={() => handleUpdateItem(group.id, item.id, { receiptLink: '' })}
+                                                className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                                                title="Remover anexo"
+                                              >
+                                                <Trash2 size={14} />
+                                              </button>
+                                            </>
+                                          ) : uploadingItemIds.has(item.id) ? (
+                                            <Loader2 size={18} className="animate-spin text-[#ff6b00]" />
+                                          ) : (
+                                            <>
+                                              <input
+                                                type="file"
+                                                id={`file-upload-${item.id}`}
+                                                className="hidden"
+                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                ref={(el) => fileInputRefs.current[item.id] = el}
+                                                onChange={(e) => handleFileUpload(e, group.id, item.id, item.name || 'SemNome')}
+                                              />
+                                              <label
+                                                htmlFor={`file-upload-${item.id}`}
+                                                className="p-1.5 text-zinc-400 hover:text-[#ff6b00] hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg cursor-pointer transition-colors"
+                                                title="Anexar comprovante"
+                                              >
+                                                <Paperclip size={18} />
+                                              </label>
+                                            </>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="flex justify-center text-zinc-300 dark:text-zinc-700" title="Apenas orçamentos concluídos aceitam anexos">
+                                          <Lock size={14} />
+                                        </div>
+                                      )}
+                                    </td>
+                                  </>
                                 )}
                                 <td className="py-3 px-2 text-right">
                                   <button onClick={() => handleDeleteItem(group.id, item.id)} className="p-1.5 text-zinc-300 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-all"><Trash2 size={16} /></button>
@@ -12542,7 +13141,7 @@ export const Planilha: React.FC = () => {
                                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                                     className="overflow-hidden"
                                   >
-                                    <td colSpan={showFinancialControl ? 9 : 8} className="p-0 border-b border-zinc-200 dark:border-zinc-800">
+                                    <td colSpan={showFinancialControl ? 10 : 8} className="p-0 border-b border-zinc-200 dark:border-zinc-800">
                                       <div className="bg-zinc-50/50 dark:bg-zinc-900/40 p-8 flex flex-col gap-6">
                                         <div className="flex items-center gap-3">
                                           <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
@@ -12605,7 +13204,274 @@ export const Planilha: React.FC = () => {
         </div>
       </div>
 
-      {/* ── RODAPÉ (shrink-0) ───────────────── */}
+      {/* ── PAINEL DE SAÚDE FINANCEIRA ──────────────────────────────── */}
+      <AnimatePresence>
+        {showFinancialControl && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="shrink-0 bg-white dark:bg-[#111113] border-t-2 border-zinc-100 dark:border-zinc-800/80 px-8 py-5 print:hidden"
+          >
+            <div className="max-w-[1400px] mx-auto">
+              {/* Título do painel */}
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1.5 h-4 rounded-full bg-[#ff6b00]" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Painel de Saúde Financeira</span>
+                <span className={cn(
+                  "ml-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                  healthMetrics.totalOverbudget > 0
+                    ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400"
+                    : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
+                )}>
+                  {healthMetrics.totalOverbudget > 0 ? "⚠ Estouro detectado" : "✓ Dentro do previsto"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                {/* ─ CARD 1: Margem Planejada vs. Realizada ────────────────── */}
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Margem Operacional</span>
+                    {healthMetrics.realMarginPct >= (activeVersion.defaultMargin * 0.8)
+                      ? <TrendingUp size={15} className="text-emerald-500" />
+                      : <TrendingDown size={15} className="text-red-500" />}
+                  </div>
+
+                  {/* Barra comparativa */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
+                      <span>Planejada</span>
+                      <span>{activeVersion.defaultMargin.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-400 transition-all duration-700"
+                        style={{ width: `${Math.min(activeVersion.defaultMargin, 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider"
+                      style={{ color: healthMetrics.realMarginPct < activeVersion.defaultMargin * 0.8 ? '#ef4444' : '#10b981' }}>
+                      <span>Realizada</span>
+                      <span>{healthMetrics.realMarginPct.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-700",
+                          healthMetrics.realMarginPct >= activeVersion.defaultMargin * 0.8
+                            ? "bg-emerald-500"
+                            : "bg-red-400"
+                        )}
+                        style={{ width: `${Math.max(0, Math.min(healthMetrics.realMarginPct, 100))}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-end justify-between pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                    <span className="text-[9px] text-zinc-400 font-semibold">Lucro Real</span>
+                    <span className={cn(
+                      "font-black font-mono tabular-nums text-base",
+                      globals.lucroReal < 0 ? "text-red-500" : "text-emerald-500"
+                    )}>
+                      {formatCurrency(globals.lucroReal)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ─ CARD 2: Estouro de Orçamento ───────────────────────── */}
+                <div className={cn(
+                  "rounded-2xl border p-4 flex flex-col gap-3 transition-colors",
+                  healthMetrics.totalOverbudget > 0
+                    ? "border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20"
+                    : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50"
+                )}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Desvio de Custo</span>
+                    {healthMetrics.totalOverbudget > 0
+                      ? <AlertTriangle size={15} className="text-red-500" />
+                      : <ShieldCheck size={15} className="text-emerald-500" />}
+                  </div>
+
+                  {healthMetrics.totalOverbudget > 0 ? (
+                    <>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider mb-0.5">
+                          🚨 {healthMetrics.overbudgetItems} {healthMetrics.overbudgetItems === 1 ? 'item' : 'itens'} acima do planejado
+                        </span>
+                        <span className="font-black font-mono text-2xl text-red-500 tabular-nums">
+                          +{formatCurrency(healthMetrics.totalOverbudget)}
+                        </span>
+                        <span className="text-[9px] text-red-400 font-medium mt-0.5">além do previsto nos custos
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-auto pt-2 border-t border-red-100 dark:border-red-900/30">
+                        <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                        <span className="text-[9px] text-red-500 font-bold">Revise os itens executados em vermelho</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider mb-0.5">Execução dentro do orçado</span>
+                        <span className="font-black font-mono text-2xl text-emerald-500 tabular-nums">
+                          {formatCurrency(0)}
+                        </span>
+                        <span className="text-[9px] text-zinc-400 font-medium mt-0.5">nenhum item estourou o custo previsto</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                        <ShieldCheck size={12} className="text-emerald-400" />
+                        <span className="text-[9px] text-emerald-500 font-bold">Orçamento sob controle</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* ─ CARD 3: Break-Even e Cobertura ────────────────────── */}
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Break-Even</span>
+                    <ShieldCheck size={15} className="text-blue-400" />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mb-0.5">Mínimo para não ter prejuízo</span>
+                    <span className="font-black font-mono text-2xl text-blue-500 tabular-nums">
+                      {formatCurrency(healthMetrics.breakEven)}
+                    </span>
+                    <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                      custo total + impostos = {formatCurrency(globals.totalCost)} + {formatCurrency(globals.totalTax)}
+                    </span>
+                  </div>
+
+                  {/* Cobertura: quanto da proposta já foi executado */}
+                  <div className="mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-1.5">
+                    <div className="flex justify-between text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
+                      <span>Execução vs. Break-Even</span>
+                      <span>{healthMetrics.breakEven > 0 ? Math.min(100, (globals.totalExecuted / healthMetrics.breakEven) * 100).toFixed(0) : 0}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-700",
+                          globals.totalExecuted > healthMetrics.breakEven ? "bg-red-400" : "bg-blue-400"
+                        )}
+                        style={{
+                          width: `${healthMetrics.breakEven > 0
+                            ? Math.min(100, (globals.totalExecuted / healthMetrics.breakEven) * 100)
+                            : 0}%`
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] text-zinc-400 font-medium">
+                      <span>Executado: {formatCurrency(globals.totalExecuted)}</span>
+                      <span className={cn(
+                        "font-bold",
+                        globals.totalExecuted > healthMetrics.breakEven ? "text-red-500" : "text-zinc-500"
+                      )}>
+                        {globals.totalExecuted > healthMetrics.breakEven ? "ACIMA" : "ABAIXO"} do break-even
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ORDEM DE PAGAMENTOS ────────────────────────────────── */}
+      {project.status === 'Concluído' && paymentList.length > 0 && (
+        <div className="shrink-0 bg-white dark:bg-[#0d0d0f] border-t-2 border-zinc-100 dark:border-zinc-800/80 px-8 py-6 print:hidden">
+          <div className="max-w-[1400px] mx-auto">
+
+            {/* Cabeçalho */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-1.5 h-4 rounded-full bg-blue-500" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Ordem de Pagamentos</span>
+              <span className="ml-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                {paymentList.length} {paymentList.length === 1 ? 'freela' : 'freelas'}
+              </span>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-zinc-50 dark:bg-zinc-900/70 text-[9px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 dark:border-zinc-800">
+                    <th className="py-3 px-5 text-left">Recurso</th>
+                    <th className="py-3 px-4 text-left">Função</th>
+                    <th className="py-3 px-4 text-left">Chave PIX</th>
+                    <th className="py-3 px-4 text-right">Valor a Pagar</th>
+                    <th className="py-3 px-4 text-center w-28">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-50 dark:divide-zinc-900">
+                  {paymentList.map(row => {
+                    const isCopied = copiedPixId === row.id;
+                    const hasPix = row.pix !== 'Não cadastrado';
+                    return (
+                      <tr key={row.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-900/30 transition-colors">
+                        <td className="py-3 px-5 font-black text-zinc-900 dark:text-white text-xs">{row.name}</td>
+                        <td className="py-3 px-4 text-zinc-500 text-xs font-medium">{row.role}</td>
+                        <td className="py-3 px-4">
+                          <span className={cn(
+                            "font-mono text-xs px-2 py-0.5 rounded-md",
+                            hasPix
+                              ? "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/50"
+                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700 italic"
+                          )}>
+                            {row.pix}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-black font-mono text-zinc-900 dark:text-white tabular-nums">
+                          {formatCurrency(row.amount)}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            onClick={() => handleCopyPix(row.id, row.pix)}
+                            disabled={!hasPix}
+                            title={hasPix ? `Copiar PIX: ${row.pix}` : 'PIX não cadastrado'}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                              isCopied
+                                ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+                                : hasPix
+                                  ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60"
+                                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-300 dark:text-zinc-600 cursor-not-allowed border border-zinc-200 dark:border-zinc-700"
+                            )}
+                          >
+                            {isCopied
+                              ? <><Check size={11} strokeWidth={3} /> Copiado!</>
+                              : <><Copy size={11} strokeWidth={2.5} /> Copiar PIX</>}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-zinc-50 dark:bg-zinc-900/50 border-t-2 border-zinc-200 dark:border-zinc-800">
+                    <td colSpan={3} className="py-3 px-5 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                      Total a Pagar (Terceiros)
+                    </td>
+                    <td className="py-3 px-4 text-right font-black font-mono text-lg text-zinc-900 dark:text-white tabular-nums">
+                      {formatCurrency(paymentList.reduce((sum, r) => sum + r.amount, 0))}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ── RODAPÉ (shrink-0) ───────────── */}
       <div className="shrink-0 bg-white dark:bg-[#1C1C1E] border-t border-zinc-200 dark:border-zinc-800 px-8 py-6 z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] print:hidden">
         <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
           
@@ -12639,6 +13505,117 @@ export const Planilha: React.FC = () => {
 
         </div>
       </div>
+
+      {/* ── MODAL: Salvar Recurso no Banco ───────────────────────────────── */}
+      <AnimatePresence>
+        {resourceToSave && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 8 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-sm mx-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
+            >
+              {/* Header */}
+              <div className="px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                        <UserPlus size={13} className="text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Novo Recurso</span>
+                    </div>
+                    <h3 className="text-base font-black text-zinc-900 dark:text-white">
+                      Salvar <span className="text-amber-500">&ldquo;{resourceToSave.name}&rdquo;</span>
+                    </h3>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Como deseja cadastrar este recurso no banco de dados?
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setResourceToSave(null)}
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-800/40">
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-zinc-400 font-semibold block mb-0.5">Cargo / Função</span>
+                    <span className="font-bold text-zinc-700 dark:text-zinc-200">{resourceToSave.role || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 font-semibold block mb-0.5">Valor Unitário</span>
+                    <span className="font-black text-[#ff6b00] font-mono">{formatCurrency(resourceToSave.unitCost)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 py-5 flex flex-col gap-2">
+                <button
+                  disabled={isSavingResource}
+                  onClick={async () => {
+                    setIsSavingResource(true);
+                    try {
+                      await addProfessional({
+                        name: resourceToSave.name,
+                        role: resourceToSave.role || '',
+                        dailyRate: resourceToSave.unitCost,
+                        pix: ''
+                      });
+                      setToastMessage(`✅ "${resourceToSave.name}" salvo como Profissional!`);
+                      setResourceToSave(null);
+                    } catch {
+                      setToastMessage('Erro ao salvar profissional.');
+                    } finally {
+                      setIsSavingResource(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#ff6b00] hover:bg-[#e55e00] disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+                >
+                  <UserPlus size={14} />
+                  Salvar como Profissional
+                </button>
+                <button
+                  disabled={isSavingResource}
+                  onClick={async () => {
+                    setIsSavingResource(true);
+                    try {
+                      await addEquipment({
+                        name: resourceToSave.name,
+                        category: resourceToSave.role || 'Geral',
+                        rentalValue: resourceToSave.unitCost
+                      });
+                      setToastMessage(`✅ "${resourceToSave.name}" salvo como Equipamento!`);
+                      setResourceToSave(null);
+                    } catch {
+                      setToastMessage('Erro ao salvar equipamento.');
+                    } finally {
+                      setIsSavingResource(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-700 dark:text-zinc-200 font-black text-xs uppercase tracking-widest rounded-xl transition-colors"
+                >
+                  Salvar como Equipamento
+                </button>
+                <button
+                  onClick={() => setResourceToSave(null)}
+                  className="w-full py-2 text-xs text-zinc-400 hover:text-zinc-600 font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <datalist id="lista-banco-recursos">
         {professionals.map(p => <option key={p.id} value={p.name} />)}
@@ -13052,56 +14029,6 @@ export const Recursos: React.FC = () => {
 };
 </file>
 
-<file path="src/services/googleDrive.ts">
-/**
- * googleDrive.ts
- * 
- * Este serviço gerenciará a integração via OAuth2 com o Google Drive para:
- * - Autenticar o usuário
- * - Fazer upload/download de orçamentos e assets
- * - Sincronizar dados entre os ambientes
- */
-
-// TODO: Configurar Google OAuth Client ID no console do Google Cloud e salvar no .env
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-
-/**
- * Função placeholder para iniciar o fluxo OAuth2.
- */
-export const authenticateGoogle = async () => {
-  if (!GOOGLE_CLIENT_ID) {
-    console.warn('⚠️ Google Client ID não configurado.');
-    return null;
-  }
-  
-  console.log('Iniciando fluxo de autenticação com o Google...');
-  // Implementação futura do fluxo OAuth2
-  return true;
-};
-
-/**
- * Função placeholder para upload de arquivos no Google Drive.
- */
-export const uploadToDrive = async (file: File, folderId?: string) => {
-  console.log(`Fazendo upload do arquivo ${file.name} para a pasta ${folderId || 'raiz'}`);
-  // Implementação futura do upload via Google Drive API
-};
-</file>
-
-<file path="src/services/supabase.ts">
-import { createClient } from '@supabase/supabase-js';
-
-// As credenciais devem ser configuradas no arquivo .env
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️ Credenciais do Supabase não encontradas. Certifique-se de configurar o arquivo .env');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-</file>
-
 <file path="src/types.ts">
 export type ProjectStatus = 'Pendente' | 'Aprovado' | 'Concluído';
 
@@ -13194,192 +14121,6 @@ export interface Equipment {
 }
 </file>
 
-<file path="src/vite-env.d.ts">
-/// <reference types="vite/client" />
-</file>
-
-<file path="supabase/migrations/01_initial_schema.sql">
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- ==========================================
--- DROP EXISTING TABLES TO PREVENT CONFLICTS
--- ==========================================
-DROP TABLE IF EXISTS cost_items CASCADE;
-DROP TABLE IF EXISTS cost_groups CASCADE;
-DROP TABLE IF EXISTS project_versions CASCADE;
-DROP TABLE IF EXISTS projects CASCADE;
-DROP TABLE IF EXISTS clients CASCADE;
-DROP TABLE IF EXISTS professionals CASCADE;
-DROP TABLE IF EXISTS equipment CASCADE;
-DROP TABLE IF EXISTS templates CASCADE;
-
--- ==========================================
--- 1. CLIENTS (Contatos / Contas)
--- ==========================================
-CREATE TABLE clients (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    cnpj_cpf VARCHAR(20),
-    email VARCHAR(255),
-    phone VARCHAR(20),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 2. PROJECTS (Orçamentos / Projetos principais)
--- ==========================================
--- Status pode ser 'Pendente', 'Aprovado', 'Concluído'
-CREATE TABLE projects (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title VARCHAR(255) NOT NULL,
-    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
-    status VARCHAR(50) DEFAULT 'Pendente',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 3. PROJECT VERSIONS (Versões do Orçamento)
--- ==========================================
-CREATE TABLE project_versions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL, -- Ex: 'V1', 'V2'
-    date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    default_tax NUMERIC(5,2) DEFAULT 10.0,
-    default_margin NUMERIC(5,2) DEFAULT 15.0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 4. COST GROUPS (Grupos de Custos dentro da Versão)
--- ==========================================
-CREATE TABLE cost_groups (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    version_id UUID NOT NULL REFERENCES project_versions(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    margin NUMERIC(5,2), -- Pode herdar do default_margin se for nulo
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 5. COST ITEMS (Itens de Custo)
--- ==========================================
-CREATE TABLE cost_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    group_id UUID NOT NULL REFERENCES cost_groups(id) ON DELETE CASCADE,
-    role VARCHAR(255),
-    name VARCHAR(255) NOT NULL,
-    quantity NUMERIC(10,2) DEFAULT 1,
-    days NUMERIC(10,2) DEFAULT 1,
-    unit_cost NUMERIC(15,2) DEFAULT 0,
-    tax NUMERIC(5,2) DEFAULT 0,
-    in_house BOOLEAN DEFAULT FALSE,
-    executed_cost NUMERIC(15,2),
-    receipt_link TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 6. ASSETS & PROFESSIONALS (Recursos da Produtora)
--- ==========================================
-CREATE TABLE professionals (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    role VARCHAR(255),
-    pix VARCHAR(255),
-    daily_rate NUMERIC(15,2) DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE TABLE equipment (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    category VARCHAR(255),
-    rental_value NUMERIC(15,2) DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 7. TEMPLATES (Modelos pré-salvos)
--- ==========================================
-CREATE TABLE templates (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    data JSONB NOT NULL, -- Armazena a estrutura JSON inteira (groups, taxes) para instanciar projetos rápidos
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- ROW LEVEL SECURITY (RLS) BASICS
--- ==========================================
--- Aqui ativamos RLS em todas as tabelas principais para garantir que as queries passem pela policy.
-ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE project_versions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cost_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cost_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE professionals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
-ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
-
--- DROP POLICIES IF EXIST BEFORE CREATING (Para evitar erro caso rodando múltiplas vezes)
-DROP POLICY IF EXISTS "Allow All for Authenticated" ON clients;
-DROP POLICY IF EXISTS "Allow All for Authenticated" ON projects;
-DROP POLICY IF EXISTS "Allow All for Authenticated" ON project_versions;
-DROP POLICY IF EXISTS "Allow All for Authenticated" ON cost_groups;
-DROP POLICY IF EXISTS "Allow All for Authenticated" ON cost_items;
-DROP POLICY IF EXISTS "Allow All for Authenticated" ON professionals;
-DROP POLICY IF EXISTS "Allow All for Authenticated" ON equipment;
-DROP POLICY IF EXISTS "Allow All for Authenticated" ON templates;
-
--- Exemplo: Permitir acesso total temporário (Atenção: em prod usar auth.uid() para segregar tenants)
-CREATE POLICY "Allow All for Authenticated" ON clients FOR ALL USING (true);
-CREATE POLICY "Allow All for Authenticated" ON projects FOR ALL USING (true);
-CREATE POLICY "Allow All for Authenticated" ON project_versions FOR ALL USING (true);
-CREATE POLICY "Allow All for Authenticated" ON cost_groups FOR ALL USING (true);
-CREATE POLICY "Allow All for Authenticated" ON cost_items FOR ALL USING (true);
-CREATE POLICY "Allow All for Authenticated" ON professionals FOR ALL USING (true);
-CREATE POLICY "Allow All for Authenticated" ON equipment FOR ALL USING (true);
-CREATE POLICY "Allow All for Authenticated" ON templates FOR ALL USING (true);
-</file>
-
-<file path="supabase/migrations/02_add_active_status.sql">
--- Migration to add is_active column to cost_groups
-ALTER TABLE cost_groups ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
-</file>
-
-<file path="tsconfig.json">
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-    "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
-}
-</file>
-
 <file path="vercel.json">
 {
   "rewrites": [
@@ -13389,33 +14130,6 @@ ALTER TABLE cost_groups ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
     }
   ]
 }
-</file>
-
-<file path="vite.config.ts">
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
-
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
-  return {
-    plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
-      },
-    },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-    },
-  };
-});
 </file>
 
 </files>

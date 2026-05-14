@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Plus, Trash2, Home, Printer, Save, ArrowLeft, Link as LinkIcon, Copy, Info, X, UserPlus, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Home, Printer, Save, ArrowLeft, Link as LinkIcon, Copy, Info, X, UserPlus, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Check, Paperclip, Eye, Loader2, Lock } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useModal } from '../context/ModalContext';
 import { CostGroup, CostItem, Project, ProjectVersion } from '../types';
@@ -26,6 +26,61 @@ export const Planilha: React.FC = () => {
   const [newDate, setNewDate] = useState('');
   const [resourceToSave, setResourceToSave] = useState<CostItem | null>(null);
   const [isSavingResource, setIsSavingResource] = useState(false);
+  const [uploadingItemIds, setUploadingItemIds] = useState<Set<string>>(new Set());
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, groupId: string, itemId: string, itemName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Arquivo muito grande. O limite é 5MB.');
+      if (fileInputRefs.current[itemId]) fileInputRefs.current[itemId]!.value = '';
+      return;
+    }
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      alert('Formato não suportado. Envie PDF, JPG ou PNG.');
+      if (fileInputRefs.current[itemId]) fileInputRefs.current[itemId]!.value = '';
+      return;
+    }
+
+    setUploadingItemIds(prev => new Set(prev).add(itemId));
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('projectName', project?.title || 'Projeto_Sem_Nome');
+      formData.append('itemName', itemName);
+
+      const res = await fetch('/api/upload-drive', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        throw new Error('Servidor de API inativo. Para testar uploads localmente, lembre-se de iniciar o servidor backend usando "npm start" em outro terminal.');
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro no upload');
+      }
+
+      handleUpdateItem(groupId, itemId, { receiptLink: data.url });
+      setToastMessage('Anexo salvo com sucesso!');
+    } catch (error: any) {
+      alert('Erro: ' + error.message);
+    } finally {
+      setUploadingItemIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+      if (fileInputRefs.current[itemId]) fileInputRefs.current[itemId]!.value = '';
+    }
+  };
 
   useEffect(() => {
     if (toastMessage) {
@@ -815,7 +870,10 @@ export const Planilha: React.FC = () => {
                             <th className="py-4 px-4 w-20 text-center">Dias</th>
                             <th className="py-4 px-4 w-40 text-right">Valor Venda</th>
                             {showFinancialControl && (
-                              <th className="py-4 px-4 w-32 bg-yellow-50/30 dark:bg-yellow-950/5">Executado</th>
+                              <>
+                                <th className="py-4 px-4 w-32 bg-yellow-50/30 dark:bg-yellow-950/5 text-right">Executado</th>
+                                <th className="py-4 px-4 w-24 text-center">Anexo</th>
+                              </>
                             )}
                             <th className="py-4 px-2 w-10"></th>
                           </tr>
@@ -884,9 +942,59 @@ export const Planilha: React.FC = () => {
                                   </div>
                                 </td>
                                 {showFinancialControl && (
-                                  <td className="py-3 px-4 bg-yellow-50/20 dark:bg-yellow-950/5">
-                                    <input type="number" value={item.executedCost || ''} onChange={e => handleUpdateItem(group.id, item.id, { executedCost: Number(e.target.value) })} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-1 px-2 text-right font-mono" placeholder="0.00" />
-                                  </td>
+                                  <>
+                                    <td className={cn("py-3 px-4 transition-colors", project.status === 'Concluído' && item.executedCost && item.executedCost > 0 && !item.receiptLink ? "bg-yellow-50 dark:bg-yellow-900/20" : "bg-yellow-50/20 dark:bg-yellow-950/5")}>
+                                      <input type="number" value={item.executedCost || ''} onChange={e => handleUpdateItem(group.id, item.id, { executedCost: Number(e.target.value) })} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-1 px-2 text-right font-mono" placeholder="0.00" />
+                                    </td>
+                                    <td className={cn("py-3 px-4 text-center transition-colors", project.status === 'Concluído' && item.executedCost && item.executedCost > 0 && !item.receiptLink ? "bg-yellow-50 dark:bg-yellow-900/20" : "")}>
+                                      {project.status === 'Concluído' ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                          {item.receiptLink ? (
+                                            <>
+                                              <button 
+                                                onClick={() => window.open(item.receiptLink, '_blank')}
+                                                className="p-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-500 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
+                                                title="Ver anexo"
+                                              >
+                                                <Eye size={16} />
+                                              </button>
+                                              <button 
+                                                onClick={() => handleUpdateItem(group.id, item.id, { receiptLink: '' })}
+                                                className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                                                title="Remover anexo"
+                                              >
+                                                <Trash2 size={14} />
+                                              </button>
+                                            </>
+                                          ) : uploadingItemIds.has(item.id) ? (
+                                            <Loader2 size={18} className="animate-spin text-[#ff6b00]" />
+                                          ) : (
+                                            <>
+                                              <input
+                                                type="file"
+                                                id={`file-upload-${item.id}`}
+                                                className="hidden"
+                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                ref={(el) => fileInputRefs.current[item.id] = el}
+                                                onChange={(e) => handleFileUpload(e, group.id, item.id, item.name || 'SemNome')}
+                                              />
+                                              <label
+                                                htmlFor={`file-upload-${item.id}`}
+                                                className="p-1.5 text-zinc-400 hover:text-[#ff6b00] hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg cursor-pointer transition-colors"
+                                                title="Anexar comprovante"
+                                              >
+                                                <Paperclip size={18} />
+                                              </label>
+                                            </>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="flex justify-center text-zinc-300 dark:text-zinc-700" title="Apenas orçamentos concluídos aceitam anexos">
+                                          <Lock size={14} />
+                                        </div>
+                                      )}
+                                    </td>
+                                  </>
                                 )}
                                 <td className="py-3 px-2 text-right">
                                   <button onClick={() => handleDeleteItem(group.id, item.id)} className="p-1.5 text-zinc-300 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-all"><Trash2 size={16} /></button>
@@ -902,7 +1010,7 @@ export const Planilha: React.FC = () => {
                                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                                     className="overflow-hidden"
                                   >
-                                    <td colSpan={showFinancialControl ? 9 : 8} className="p-0 border-b border-zinc-200 dark:border-zinc-800">
+                                    <td colSpan={showFinancialControl ? 10 : 8} className="p-0 border-b border-zinc-200 dark:border-zinc-800">
                                       <div className="bg-zinc-50/50 dark:bg-zinc-900/40 p-8 flex flex-col gap-6">
                                         <div className="flex items-center gap-3">
                                           <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
