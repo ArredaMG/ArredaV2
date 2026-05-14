@@ -92,8 +92,23 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
 
     const drive = google.drive({ version: 'v3', auth });
 
-    // 1. Procurar subpasta com projectName
-    const query = `'${rootFolderId}' in parents and name = '${projectName.replace(/'/g, "\\'")}'  and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    // ── Verificação de Acesso à Pasta Pai ─────────────────────────────────
+    console.log('🚀 Tentando upload multipart para:', rootFolderId);
+    try {
+      await drive.files.get({
+        fileId: rootFolderId,
+        fields: 'id, name',
+        supportsAllDrives: true,
+      });
+      console.log('✅ Acesso à pasta pai confirmado.');
+    } catch (accessErr) {
+      console.error('❌ Sem acesso à pasta pai:', accessErr.message);
+      fs.unlinkSync(file.filepath);
+      return res.status(500).json({ error: 'Sem permissão de acesso à pasta do Google Drive.', details: accessErr.message });
+    }
+
+    // ── Busca ou criação da subpasta do projeto ───────────────────────────
+    const query = `'${rootFolderId}' in parents and name = '${projectName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
     const searchRes = await drive.files.list({
       q: query,
       fields: 'files(id, name)',
@@ -105,37 +120,32 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
     let folderId;
 
     if (searchRes.data.files && searchRes.data.files.length > 0) {
-      // Pasta existe
       folderId = searchRes.data.files[0].id;
+      console.log('📂 Subpasta existente encontrada:', folderId);
     } else {
-      // Criar nova pasta
-      const folderMetadata = {
-        name: projectName,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [rootFolderId],
-      };
       const folderRes = await drive.files.create({
-        requestBody: folderMetadata,
+        requestBody: {
+          name: projectName,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [rootFolderId],
+        },
         fields: 'id',
         supportsAllDrives: true,
       });
       folderId = folderRes.data.id;
+      console.log('📁 Nova subpasta criada:', folderId);
 
-      // Conceder permissão de leitura
       await drive.permissions.create({
         fileId: folderId,
-        requestBody: {
-          role: 'reader',
-          type: 'anyone',
-        },
+        requestBody: { role: 'reader', type: 'anyone' },
+        supportsAllDrives: true,
       });
     }
 
-    // 2. Nomenclatura Rigorosa
+    // ── Nomenclatura e Upload ─────────────────────────────────────────────
     const originalExt = path.extname(file.originalFilename || file.newFilename);
     const newFileName = `${projectName} - ${itemName}${originalExt}`;
 
-    // 3. Upload do arquivo
     const fileMetadata = {
       name: newFileName,
       parents: [folderId],
@@ -146,13 +156,14 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
       body: fs.createReadStream(file.filepath),
     };
 
-    console.log("📁 Enviando arquivo para a pasta ID:", folderId);
+    console.log('📤 Enviando arquivo para subpasta ID:', folderId);
 
     const uploadRes = await drive.files.create({
       requestBody: fileMetadata,
       media: media,
       fields: 'id, webViewLink, webContentLink',
       supportsAllDrives: true,
+      keepRevisionForever: true,
     });
 
     // Limpeza
