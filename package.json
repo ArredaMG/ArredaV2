@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "start": "node server.js",
+    "start": "node server-entry.cjs",
     "build": "tsc -b && vite build",
     "postinstall": "npm run build",
     "preview": "vite preview",
