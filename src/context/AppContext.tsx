@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectVersion, Professional, Equipment, Client, Template, CostGroup } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '../services/supabase';
+import * as dbService from '../services/db-services';
 
 export interface AppContextType {
   projects: Project[];
@@ -28,6 +28,10 @@ export interface AppContextType {
   deleteTemplate: (id: string) => Promise<void>;
   deleteProjectVersion: (projectId: string, versionId: string) => Promise<void>;
   updateTemplate?: (id: string, updatedTemplate: Template) => Promise<void>;
+  isVersionLoading: boolean;
+  loadVersionData: (versionId: string) => Promise<void>;
+  clearVersionData: (versionId: string) => void;
+  refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -39,296 +43,200 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [clientes, setClientes] = useState<Client[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
-  const [hasActiveColumn, setHasActiveColumn] = useState<boolean>(false); // Seguro por padrão
 
-  // Initial Fetch from Supabase
+  // Initial Fetch from Neon (via Drizzle)
+  const refreshData = async () => {
+    try {
+      const data = await dbService.fetchAllData();
+      setClientes(data.clients);
+      setProfessionals(data.professionals);
+      setEquipments(data.equipments);
+      setTemplates(data.templates);
+      setProjects(data.projects);
+    } catch (error) {
+      console.error('Error fetching data from Neon:', error);
+    }
+  };
+
   useEffect(() => {
-    const fetchAllData = async () => {
-      try {
-        // Verifica se a coluna 'is_active' existe para evitar erros de salvamento
-        const { error: schemaErr } = await supabase.from('cost_groups').select('is_active').limit(1);
-        if (!schemaErr) {
-          setHasActiveColumn(true);
-        } else {
-          console.warn("⚠️ Coluna 'is_active' não disponível em 'cost_groups'. Desabilitando gravação desta coluna.");
-        }
-
-        const [
-          { data: clientsData },
-          { data: profsData },
-          { data: equipData },
-          { data: templatesData },
-          { data: projectsData },
-          { data: versionsData },
-          { data: groupsData },
-          { data: itemsData }
-        ] = await Promise.all([
-          supabase.from('clients').select('*'),
-          supabase.from('professionals').select('*'),
-          supabase.from('equipment').select('*'),
-          supabase.from('templates').select('*'),
-          supabase.from('projects').select('*').order('created_at', { ascending: false }),
-          supabase.from('project_versions').select('*'),
-          supabase.from('cost_groups').select('*'),
-          supabase.from('cost_items').select('*')
-        ]);
-
-        let localClients = clientsData ? clientsData.map(c => ({ id: c.id, nome: c.name, cnpj: c.cnpj_cpf || '' })) : [];
-        setClientes(localClients);
-        
-        if (profsData) setProfessionals(profsData.map(p => ({ id: p.id, name: p.name, role: p.role || '', pix: p.pix || '', dailyRate: p.daily_rate })));
-        if (equipData) setEquipments(equipData.map(e => ({ id: e.id, name: e.name, category: e.category || '', rentalValue: e.rental_value })));
-        if (templatesData) setTemplates(templatesData.map(t => ({ id: t.id, name: t.name, data: t.data })));
-
-        if (projectsData) {
-          const assembledProjects: Project[] = projectsData.map(p => {
-            const clientObj = localClients.find(c => c.id === p.client_id);
-            const clientName = clientObj ? clientObj.nome : 'Cliente Não Encontrado';
-
-            const pVersions = (versionsData || []).filter(v => v.project_id === p.id).map(v => {
-              const vGroups = (groupsData || []).filter(g => g.version_id === v.id).map(g => {
-                const gItems = (itemsData || []).filter(i => i.group_id === g.id).map(i => ({
-                  id: i.id,
-                  role: i.role,
-                  name: i.name,
-                  quantity: Number(i.quantity),
-                  days: Number(i.days),
-                  unitCost: Number(i.unit_cost),
-                  tax: Number(i.tax),
-                  inHouse: Boolean(i.in_house),
-                  executedCost: i.executed_cost ? Number(i.executed_cost) : undefined,
-                  receiptLink: i.receipt_link
-                }));
-                return { 
-                  id: g.id, 
-                  name: g.name, 
-                  margin: g.margin !== null ? Number(g.margin) * 100 : undefined, // Conv decimal para %
-                  isActive: g.is_active !== false,
-                  items: gItems 
-                };
-              });
-              return {
-                id: v.id,
-                name: v.name,
-                date: v.date,
-                defaultTax: Number(v.default_tax) * 100, // Conv decimal para %
-                defaultMargin: Number(v.default_margin) * 100, // Conv decimal para %
-                groups: vGroups
-              };
-            });
-
-            return {
-              id: p.id,
-              title: p.title,
-              client: clientName,
-              status: p.status as any,
-              versions: pVersions.sort((a,b) => a.name.localeCompare(b.name))
-            };
-          });
-          setProjects(assembledProjects);
-        }
-      } catch (error) {
-        console.error('Error fetching data from Supabase:', error);
-      }
-    };
-
-    fetchAllData();
+    refreshData();
   }, []);
 
   const getClientIdByName = async (clientName: string) => {
     let clientMatch = clientes.find(c => c.nome === clientName);
     if (clientMatch) return clientMatch.id;
     
-    const newClientId = uuidv4();
-    const { error } = await supabase.from('clients').insert({ id: newClientId, name: clientName });
-    if (error) console.error("Error creating client:", error);
+    // Snapshot
+    const previousClients = [...clientes];
+    const newClient: Client = { id: uuidv4(), nome: clientName, cnpj: '' };
     
-    setClientes(prev => [...prev, { id: newClientId, nome: clientName, cnpj: '' }]);
-    return newClientId;
+    // Mutação Otimista
+    setClientes(prev => [...prev, newClient]);
+    
+    try {
+        await dbService.addClient(newClient);
+        return newClient.id;
+    } catch (error) {
+        console.error('Erro ao resolver cliente:', error);
+        setClientes(previousClients);
+        // Não lançamos erro aqui para não quebrar o fluxo do projeto, 
+        // mas o rollback garantirá integridade.
+        return newClient.id; 
+    }
+  };
+
+  const [isVersionLoading, setIsVersionLoading] = useState(false);
+
+  const loadVersionData = async (versionId: string) => {
+    setIsVersionLoading(true);
+    try {
+      const vGroups = await dbService.loadVersionData(versionId);
+
+      setProjects(prev => prev.map(p => {
+        const hasVersion = p.versions.some(v => v.id === versionId);
+        if (!hasVersion) return p;
+        return {
+          ...p,
+          versions: p.versions.map(v => v.id === versionId ? { ...v, groups: vGroups } : v)
+        };
+      }));
+    } catch (err) {
+      console.error("Error loading version data:", err);
+    } finally {
+      setIsVersionLoading(false);
+    }
+  };
+
+  const clearVersionData = (versionId: string) => {
+    setProjects(prev => prev.map(p => {
+      const hasVersion = p.versions.some(v => v.id === versionId);
+      if (!hasVersion) return p;
+      return {
+        ...p,
+        versions: p.versions.map(v => v.id === versionId ? { ...v, groups: [] } : v)
+      };
+    }));
   };
 
   const addProject = async (projectData: Omit<Project, 'id' | 'versions'> & { defaultTax: number; defaultMargin: number; groups: CostGroup[] }) => {
     const parentId = uuidv4();
     const versionId = uuidv4();
     
-    const newProject: Project = {
-      id: parentId,
-      title: projectData.title,
-      client: projectData.client,
-      status: projectData.status,
-      versions: [{
-        id: versionId,
-        name: 'V1',
-        date: new Date().toISOString().split('T')[0],
-        defaultTax: projectData.defaultTax,
-        defaultMargin: projectData.defaultMargin,
-        groups: projectData.groups,
-      }]
-    };
-    setProjects(prev => [newProject, ...prev]);
-
     try {
-        const client_id = await getClientIdByName(projectData.client);
-
-        const { error: pErr } = await supabase.from('projects').insert({
-            id: parentId,
-            title: projectData.title,
-            client_id: client_id,
-            status: projectData.status
-        });
-        if (pErr) throw pErr;
-
-        const { error: vErr } = await supabase.from('project_versions').insert({
-            id: versionId,
-            project_id: parentId,
-            name: 'V1',
-            date: new Date().toISOString(),
-            default_tax: projectData.defaultTax / 100,
-            default_margin: projectData.defaultMargin / 100
-        });
-        if (vErr) throw vErr;
-
-        if (projectData.groups.length > 0) {
-            const groupsToInsert = projectData.groups.map(g => {
-                const data: any = {
-                    id: g.id,
-                    version_id: versionId,
-                    name: g.name,
-                    margin: g.margin !== undefined ? g.margin / 100 : null
-                };
-                if (hasActiveColumn) data.is_active = g.isActive !== false;
-                return data;
-            });
-            const { error: gErr } = await supabase.from('cost_groups').insert(groupsToInsert);
-            if (gErr) throw gErr;
-            
-            const allItems: any[] = [];
-            projectData.groups.forEach(g => {
-                g.items.forEach(i => {
-                    allItems.push({
-                        id: i.id,
-                        group_id: g.id,
-                        role: i.role,
-                        name: i.name,
-                        quantity: i.quantity,
-                        days: i.days,
-                        unit_cost: i.unitCost,
-                        tax: i.tax,
-                        in_house: i.inHouse,
-                        executed_cost: i.executedCost,
-                        receipt_link: i.receiptLink
-                    });
-                });
-            });
-
-            if (allItems.length > 0) {
-                const { error: iErr } = await supabase.from('cost_items').insert(allItems);
-                if (iErr) throw iErr;
-            }
-        }
-    } catch (error) {
-        console.error("Error creating project in Supabase:", error);
-        throw error;
-    }
-
-    return newProject;
-  };
-
-  const updateProject = async (id: string, updates: Partial<Project>) => {
-    // Debug log as requested
-    console.log("Dados salvos (updateProject):", updates);
-
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-    
-    try {
-      const dbUpdates: any = {};
-      if (updates.title) dbUpdates.title = updates.title;
-      if (updates.status) dbUpdates.status = updates.status;
-      if (updates.client) dbUpdates.client_id = await getClientIdByName(updates.client);
+      const clientId = await getClientIdByName(projectData.client);
       
-      if (Object.keys(dbUpdates).length > 0) {
-        await supabase.from('projects').update(dbUpdates).eq('id', id);
-      }
+      const maxNumber = projects.length > 0 ? Math.max(...projects.map(p => p.projectNumber || 0)) : 0;
+      const nextProjectNumber = maxNumber + 1;
 
-      // If full project object was passed with versions, sync all versions
-      if (updates.versions && updates.versions.length > 0) {
-          for (const v of updates.versions) {
-              await syncVersionWithSupabase(v);
+      const newProjectData = {
+        id: parentId,
+        title: projectData.title,
+        clientId: clientId,
+        status: projectData.status,
+        projectNumber: nextProjectNumber,
+        versions: [{
+          id: versionId,
+          name: 'V1',
+          date: new Date().toISOString().split('T')[0],
+          defaultTax: projectData.defaultTax,
+          defaultMargin: projectData.defaultMargin,
+          groups: projectData.groups,
+        }]
+      };
+
+      const savedProject = await dbService.createProject(newProjectData);
+      
+      const projectWithGroups: Project = {
+          id: savedProject.id,
+          title: savedProject.title,
+          client: projectData.client,
+          status: savedProject.status as any,
+          projectNumber: savedProject.projectNumber,
+          createdAt: savedProject.createdAt,
+          versions: [{
+              ...savedProject.versions[0],
+              groups: projectData.groups
+          }]
+      };
+
+      if (projectData.groups.length > 0) {
+          const fullySyncedProject = await dbService.syncVersionWithDb(projectWithGroups.versions[0]);
+          if (fullySyncedProject) {
+              console.log("Atualizando lista. Projetos anteriores:", projects.length);
+              setProjects(prev => [fullySyncedProject, ...prev]);
+              return fullySyncedProject;
           }
       }
+
+      console.log("Atualizando lista. Projetos anteriores:", projects.length);
+      setProjects(prev => [projectWithGroups, ...prev]);
+      return projectWithGroups;
     } catch (error) {
-      console.error('Error updating project:', error);
+      console.error('Error adding project:', error);
       throw error;
     }
   };
 
-  const syncVersionWithSupabase = async (version: ProjectVersion) => {
-    try {
-      // 1. Update version metadata
-      const { error: vErr } = await supabase.from('project_versions').update({
-        name: version.name,
-        date: version.date,
-        default_tax: version.defaultTax / 100,
-        default_margin: version.defaultMargin / 100
-      }).eq('id', version.id);
-      if (vErr) throw vErr;
-
-      // 2. Clear existing groups/items
-      const { error: delErr } = await supabase.from('cost_groups').delete().eq('version_id', version.id);
-      if (delErr) throw delErr;
-
-      // 3. Batch insert groups
-      if (version.groups.length > 0) {
-        const groupsToInsert = version.groups.map(g => {
-          const data: any = {
-            id: g.id,
-            version_id: version.id,
-            name: g.name,
-            margin: g.margin !== undefined ? g.margin / 100 : null
-          };
-          if (hasActiveColumn) data.is_active = g.isActive !== false;
-          return data;
-        });
-        
-        const { error: gError } = await supabase.from('cost_groups').insert(groupsToInsert);
-        if (gError) throw gError;
-
-        // 4. Batch insert all items from all groups
-        const allItems: any[] = [];
-        version.groups.forEach(g => {
-          g.items.forEach(i => {
-            allItems.push({
-              id: i.id,
-              group_id: g.id,
-              role: i.role,
-              name: i.name,
-              quantity: i.quantity,
-              days: i.days,
-              unit_cost: i.unitCost,
-              tax: i.tax,
-              in_house: i.inHouse,
-              executed_cost: i.executedCost,
-              receipt_link: i.receiptLink
-            });
-          });
-        });
-
-        if (allItems.length > 0) {
-          const { error: iError } = await supabase.from('cost_items').insert(allItems);
-          if (iError) throw iError;
-        }
+  const updateProject = async (id: string, updates: Partial<Project>) => {
+    // Validação de duplicidade de número
+    if (updates.projectNumber !== undefined) {
+      const isTaken = await dbService.isProjectNumberTaken(updates.projectNumber, id);
+      if (isTaken) {
+        alert("Este número de orçamento já está em uso. Por favor, escolha outro.");
+        throw new Error("Duplicate project number");
       }
+    }
+
+    console.log("1. Iniciando Update. Projetos atuais no estado:", projects.length);
+    console.log("2. Enviando para o BD:", updates);
+
+    // 1. Snapshot
+    const previousProjects = [...projects];
+
+    // 2. Mutação Otimista (UI Imediata)
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    
+    try {
+      // 3. Chamada ao Banco (Background, silenciosa)
+      const dbUpdates: any = {};
+      if (updates.title) dbUpdates.title = updates.title;
+      if (updates.status) dbUpdates.status = updates.status;
+      if (updates.client) dbUpdates.clientId = await getClientIdByName(updates.client);
+      if (updates.projectNumber !== undefined) dbUpdates.projectNumber = updates.projectNumber;
+      if ('startDate' in updates) dbUpdates.startDate = updates.startDate || null;
+      if ('endDate' in updates) dbUpdates.endDate = updates.endDate || null;
+      if ('recordingDates' in updates) dbUpdates.recordingDates = updates.recordingDates;
+
+      await dbService.updateProject(id, dbUpdates);
     } catch (error) {
-      console.error('Error syncing version with Supabase:', error);
+      // 4. Rollback em caso de falha
+      console.error("ERRO NEON DB:", error);
+      console.error('Erro detalhado ao sincronizar o projeto no DB:', {
+        projectId: id,
+        attemptedUpdates: updates,
+        error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+      });
+      setProjects(previousProjects);
+      alert("Falha de conexão: As alterações no projeto não puderam ser salvas e foram desfeitas.");
       throw error;
     }
   };
 
   const deleteProject = async (id: string) => {
+    // 1. Snapshot
+    const previousProjects = [...projects];
+
+    // 2. Mutação Otimista
     setProjects(prev => prev.filter(p => p.id !== id));
-    const { error } = await supabase.from('projects').delete().eq('id', id);
-    if (error) {
-      console.error("Error deleting project:", error);
+
+    try {
+      // 3. Chamada ao Banco
+      await dbService.deleteProject(id);
+    } catch (error) {
+      // 4. Rollback
+      console.error('Erro ao excluir projeto:', error);
+      setProjects(previousProjects);
+      alert("Falha de conexão: O projeto não pôde ser excluído e foi restaurado na lista.");
       throw error;
     }
   };
@@ -337,6 +245,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const project = projects.find(p => p.id === projectId);
     if (!project) return undefined;
 
+    // 1. Snapshot
+    const previousProjects = [...projects];
+
     let baseVersion = project.versions[project.versions.length - 1];
     if (versionIdToClone) {
       const found = project.versions.find(v => v.id === versionIdToClone);
@@ -344,9 +255,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const nextVNumber = project.versions.length + 1;
-    const newVersion = {
+    const newVersionId = uuidv4();
+    const newVersion: ProjectVersion = {
       ...baseVersion,
-      id: uuidv4(),
+      id: newVersionId,
       name: `V${nextVNumber}`,
       date: new Date().toISOString().split('T')[0],
       groups: baseVersion.groups.map(g => ({
@@ -356,52 +268,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }))
     };
 
+    // 2. Mutação Otimista
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, versions: [...p.versions, newVersion] } : p));
-    
+
     try {
-      const { error: vErr } = await supabase.from('project_versions').insert({
-        id: newVersion.id, project_id: projectId, name: newVersion.name, date: new Date().toISOString(),
-        default_tax: newVersion.defaultTax / 100, default_margin: newVersion.defaultMargin / 100
+      // 3. Chamada ao Banco
+      await dbService.addProjectVersion({
+          id: newVersion.id,
+          projectId: projectId,
+          name: newVersion.name,
+          date: newVersion.date,
+          defaultTax: newVersion.defaultTax,
+          defaultMargin: newVersion.defaultMargin
       });
-      if (vErr) throw vErr;
 
       if (newVersion.groups.length > 0) {
-        const groupsToInsert = newVersion.groups.map(g => {
-            const data: any = {
-                id: g.id, 
-                version_id: newVersion.id, 
-                name: g.name, 
-                margin: g.margin !== undefined ? g.margin / 100 : null
-            };
-            if (hasActiveColumn) data.is_active = g.isActive !== false;
-            return data;
-        });
-        const { error: gErr } = await supabase.from('cost_groups').insert(groupsToInsert);
-        if (gErr) throw gErr;
-
-        const allItems: any[] = [];
-        newVersion.groups.forEach(g => {
-            g.items.forEach(i => {
-                allItems.push({
-                    id: i.id, group_id: g.id, role: i.role, name: i.name, quantity: i.quantity, days: i.days,
-                    unit_cost: i.unitCost, tax: i.tax, in_house: i.inHouse, executed_cost: i.executedCost, receipt_link: i.receiptLink
-                });
-            });
-        });
-        if (allItems.length > 0) {
-            const { error: iErr } = await supabase.from('cost_items').insert(allItems);
-            if (iErr) throw iErr;
-        }
+          await dbService.syncVersionWithDb(newVersion);
       }
+      
+      return { ...project, versions: [...project.versions, newVersion] };
     } catch (error) {
-        console.error("Error creating project version:", error);
-        throw error;
+      // 4. Rollback
+      console.error('Erro ao adicionar versão:', error);
+      setProjects(previousProjects);
+      alert("Falha de conexão: A nova versão não pôde ser criada no servidor.");
+      return undefined;
     }
-
-    return { ...project, versions: [...project.versions, newVersion] };
   };
 
   const updateProjectVersion = async (projectId: string, versionId: string, updates: Partial<ProjectVersion>) => {
+    // 1. Snapshot
+    const previousProjects = [...projects];
+
+    // 2. Mutação Otimista
     setProjects(prev => {
         return prev.map(p => p.id === projectId ? {
             ...p, versions: p.versions.map(v => v.id === versionId ? { ...v, ...updates } : v)
@@ -409,141 +308,194 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     try {
-        // If updates include structural changes (groups), sync the whole version
-        if (updates.groups) {
-            const project = projects.find(p => p.id === projectId);
-            const version = project?.versions.find(v => v.id === versionId);
-            if (version) {
-                await syncVersionWithSupabase({ ...version, ...updates });
-            }
-        } else if (updates.name || updates.date || updates.defaultMargin || updates.defaultTax) {
-            const dbUpdates: any = {};
-            if (updates.name) dbUpdates.name = updates.name;
-            if (updates.date) dbUpdates.date = updates.date;
-            if (updates.defaultMargin !== undefined) dbUpdates.default_margin = updates.defaultMargin / 100;
-            if (updates.defaultTax !== undefined) dbUpdates.default_tax = updates.defaultTax / 100;
-            
-            await supabase.from('project_versions').update(dbUpdates).eq('id', versionId);
-        }
+        // 3. Chamada ao Banco (Background, silenciosa)
+        const project = previousProjects.find(p => p.id === projectId);
+        const prevVersion = project?.versions.find(v => v.id === versionId);
+        
+        if (!prevVersion) throw new Error("Versão não encontrada para sincronização.");
+        
+        const updatedVersion = { ...prevVersion, ...updates } as ProjectVersion;
+        await dbService.syncVersionWithDb(updatedVersion);
     } catch (error) {
-        console.error('Error updating project version:', error);
+        // 4. Rollback
+        console.error('Erro ao atualizar versão:', error);
+        setProjects(previousProjects);
+        alert("Falha de conexão: As alterações na versão não puderam ser salvas e foram desfeitas por segurança.");
         throw error;
     }
   };
 
   const addProfessional = async (professional: Omit<Professional, 'id'>) => {
+    const previousProfessionals = [...professionals];
     const id = uuidv4();
-    setProfessionals(prev => [...prev, { ...professional, id }]);
-    const { error } = await supabase.from('professionals').insert({ id, name: professional.name, role: professional.role, pix: professional.pix, daily_rate: professional.dailyRate });
-    if (error) {
-        console.error("Error adding professional:", error);
-        throw error;
+    const newProf = { ...professional, id };
+    
+    setProfessionals(prev => [...prev, newProf]);
+    
+    try {
+        await dbService.addProfessional(newProf);
+    } catch (error) {
+        console.error('Erro ao adicionar profissional:', error);
+        setProfessionals(previousProfessionals);
+        alert("Falha de conexão: O profissional não pôde ser salvo no servidor.");
     }
   };
 
   const updateProfessional = async (id: string, updates: Partial<Professional>) => {
-    setProfessionals(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-    const { error } = await supabase.from('professionals').update({ name: updates.name, role: updates.role, pix: updates.pix, daily_rate: updates.dailyRate }).eq('id', id);
-    if (error) {
-        console.error("Error updating professional:", error);
-        throw error;
+    const previousProfessionals = [...professionals];
+    setProfessionals(prevList => prevList.map(p => p.id === id ? { ...p, ...updates } : p));
+    
+    try {
+        await dbService.updateProfessional(id, updates);
+    } catch (error) {
+        console.error('Erro ao atualizar profissional:', error);
+        setProfessionals(previousProfessionals);
+        alert("Falha de conexão: As alterações no profissional foram desfeitas por segurança.");
     }
   };
 
   const deleteProfessional = async (id: string) => {
-    setProfessionals(prev => prev.filter(p => p.id !== id));
-    const { error } = await supabase.from('professionals').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting professional:", error);
-        throw error;
+    const previousProfessionals = [...professionals];
+    setProfessionals(prevList => prevList.filter(p => p.id !== id));
+    
+    try {
+        await dbService.deleteProfessional(id);
+    } catch (error) {
+        console.error('Erro ao excluir profissional:', error);
+        setProfessionals(previousProfessionals);
+        alert("Falha de conexão: O profissional não pôde ser excluído.");
     }
   };
 
   const addEquipment = async (equipment: Omit<Equipment, 'id'>) => {
+    const previousEquipments = [...equipments];
     const id = uuidv4();
-    setEquipments(prev => [...prev, { ...equipment, id }]);
-    const { error } = await supabase.from('equipment').insert({ id, name: equipment.name, category: equipment.category, rental_value: equipment.rentalValue });
-    if (error) {
-        console.error("Error adding equipment:", error);
-        throw error;
+    const newEquip = { ...equipment, id };
+    
+    setEquipments(prev => [...prev, newEquip]);
+    
+    try {
+        await dbService.addEquipment(newEquip);
+    } catch (error) {
+        console.error('Erro ao adicionar equipamento:', error);
+        setEquipments(previousEquipments);
+        alert("Falha de conexão: O equipamento não pôde ser salvo no servidor.");
     }
   };
 
   const updateEquipment = async (id: string, updates: Partial<Equipment>) => {
-    setEquipments(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
-    const { error } = await supabase.from('equipment').update({ name: updates.name, category: updates.category, rental_value: updates.rentalValue }).eq('id', id);
-    if (error) {
-        console.error("Error updating equipment:", error);
-        throw error;
+    const previousEquipments = [...equipments];
+    setEquipments(prevList => prevList.map(e => e.id === id ? { ...e, ...updates } : e));
+    
+    try {
+        await dbService.updateEquipment(id, updates);
+    } catch (error) {
+        console.error('Erro ao atualizar equipamento:', error);
+        setEquipments(previousEquipments);
+        alert("Falha de conexão: As alterações no equipamento foram desfeitas.");
     }
   };
 
   const deleteEquipment = async (id: string) => {
-    setEquipments(prev => prev.filter(e => e.id !== id));
-    const { error } = await supabase.from('equipment').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting equipment:", error);
-        throw error;
+    const previousEquipments = [...equipments];
+    setEquipments(prevList => prevList.filter(e => e.id !== id));
+    
+    try {
+        await dbService.deleteEquipment(id);
+    } catch (error) {
+        console.error('Erro ao excluir equipamento:', error);
+        setEquipments(previousEquipments);
+        alert("Falha de conexão: O equipamento não pôde ser excluído.");
     }
   };
 
   const addClient = async (client: Omit<Client, 'id'>) => {
+    const previousClients = [...clientes];
     const id = uuidv4();
-    setClientes(prev => [...prev, { ...client, id }]);
-    const { error } = await supabase.from('clients').insert({ id, name: client.nome, cnpj_cpf: client.cnpj });
-    if (error) {
-        console.error("Error adding client:", error);
-        throw error;
+    const newClient = { ...client, id };
+    
+    setClientes(prev => [...prev, newClient]);
+    
+    try {
+        await dbService.addClient(newClient);
+    } catch (error) {
+        console.error('Erro ao adicionar cliente:', error);
+        setClientes(previousClients);
+        alert("Falha de conexão: O cliente não pôde ser salvo.");
     }
   };
 
   const deleteClient = async (id: string) => {
+    const previousClients = [...clientes];
     setClientes(prev => prev.filter(c => c.id !== id));
-    const { error } = await supabase.from('clients').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting client:", error);
-        throw error;
+    
+    try {
+        await dbService.deleteClient(id);
+    } catch (error) {
+        console.error('Erro ao excluir cliente:', error);
+        setClientes(previousClients);
+        alert("Falha de conexão: O cliente não pôde ser excluído.");
     }
   };
 
   const addTemplate = async (template: Omit<Template, 'id'>) => {
+    const previousTemplates = [...templates];
     const id = uuidv4();
-    setTemplates(prev => [...prev, { ...template, id }]);
-    const { error } = await supabase.from('templates').insert({ id, name: template.name, data: template.data });
-    if (error) {
-        console.error("Error adding template:", error);
-        throw error;
+    const newTemplate = { ...template, id };
+    
+    setTemplates(prev => [...prev, newTemplate]);
+    
+    try {
+        await dbService.addTemplate(newTemplate);
+    } catch (error) {
+        console.error('Erro ao adicionar modelo:', error);
+        setTemplates(previousTemplates);
+        alert("Falha de conexão: O modelo não pôde ser salvo.");
     }
   };
 
   const deleteTemplate = async (id: string) => {
+    const previousTemplates = [...templates];
     setTemplates(prev => prev.filter(t => t.id !== id));
-    const { error } = await supabase.from('templates').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting template:", error);
-        throw error;
+    
+    try {
+        await dbService.deleteTemplate(id);
+    } catch (error) {
+        console.error('Erro ao excluir modelo:', error);
+        setTemplates(previousTemplates);
+        alert("Falha de conexão: O modelo não pôde ser excluído.");
     }
   };
 
   const updateTemplate = async (id: string, updatedTemplate: Template) => {
-    setTemplates(prev => prev.map(t => t.id === id ? updatedTemplate : t));
-    const { error } = await supabase.from('templates').update({ name: updatedTemplate.name, data: updatedTemplate.data }).eq('id', id);
-    if (error) {
-        console.error("Error updating template:", error);
-        throw error;
+    const previousTemplates = [...templates];
+    const idToUpdate = updatedTemplate.id;
+    setTemplates(prevList => prevList.map(t => t.id === idToUpdate ? updatedTemplate : t));
+    
+    try {
+        await dbService.updateTemplate(idToUpdate, updatedTemplate);
+    } catch (error) {
+        console.error('Erro ao atualizar modelo:', error);
+        setTemplates(previousTemplates);
+        alert("Falha de conexão: As alterações no modelo foram desfeitas.");
     }
   };
 
   const deleteProjectVersion = async (projectId: string, versionId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project || project.versions.length <= 1) return;
+
+    const prevVersions = [...project.versions];
     setProjects(prev => prev.map(p => {
       if (p.id !== projectId) return p;
-      if (p.versions.length <= 1) return p; // Keep at least one version or handle project deletion
       return { ...p, versions: p.versions.filter(v => v.id !== versionId) };
     }));
-    const { error } = await supabase.from('project_versions').delete().eq('id', versionId);
-    if (error) {
-        console.error("Error deleting project version:", error);
-        throw error;
+
+    try {
+      await dbService.deleteProjectVersion(versionId);
+    } catch (error) {
+      setProjects(prev => prev.map(p => p.id === projectId ? { ...p, versions: prevVersions } : p));
+      throw error;
     }
   };
 
@@ -554,7 +506,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addProfessional, updateProfessional, deleteProfessional,
       addEquipment, updateEquipment, deleteEquipment,
       addClient, deleteClient,
-      addTemplate, deleteTemplate, updateTemplate, deleteProjectVersion
+      addTemplate, deleteTemplate, updateTemplate, deleteProjectVersion,
+      isVersionLoading, loadVersionData, clearVersionData, refreshData
     }}>
       {children}
     </AppContext.Provider>

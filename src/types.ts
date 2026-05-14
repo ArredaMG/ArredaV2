@@ -23,6 +23,13 @@ export interface ProjectVersion {
   defaultTax: number;
   defaultMargin: number;
   groups: CostGroup[];
+  // Calculated totals
+  totalCost?: number;
+  subtotal?: number;
+  totalTax?: number;
+  totalProposta?: number;
+  totalProfit?: number;
+  totalExecuted?: number;
 }
 
 export interface Project {
@@ -30,6 +37,11 @@ export interface Project {
   title: string;
   client: string;
   status: ProjectStatus;
+  projectNumber: number;
+  startDate?: string | Date;
+  endDate?: string | Date;
+  recordingDates: string[];
+  createdAt: string | Date;
   versions: ProjectVersion[];
 }
 
@@ -39,6 +51,11 @@ export interface CostGroup {
   margin?: number;
   isActive?: boolean;
   items: CostItem[];
+  // Group-level totals
+  totalCost?: number;
+  totalVenda?: number;
+  totalTax?: number;
+  totalProposta?: number;
 }
 
 export interface CostItem {
@@ -48,11 +65,12 @@ export interface CostItem {
   quantity: number;
   days?: number;
   unitCost: number;
-  tax: number;
-  inHouse: boolean;
-  margin?: number;
+  tax?: number;
+  isInHouse: boolean;
+  customMargin?: number;
   executedCost?: number;
   receiptLink?: string;
+  category?: string;
 }
 
 export interface Professional {

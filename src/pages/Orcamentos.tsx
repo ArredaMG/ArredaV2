@@ -107,79 +107,81 @@ export const Orcamentos: React.FC = () => {
       </div>
 
       {/* ── ÁREA DE CONTEÚDO SCROLLÁVEL (flex-1) ───────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-8 py-8">
+      <div className="flex-1 overflow-y-auto px-8 py-8 pb-32">
         <div className="max-w-[1400px] mx-auto">
           
           <div className="bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 dark:text-zinc-400 text-[11px] font-black uppercase tracking-wider border-b border-gray-200 dark:border-gray-800">
-                  <th className="px-6 py-4">Projeto / Versão</th>
-                  <th className="px-6 py-4">Cliente</th>
-                  <th className="px-6 py-4">Data</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {filteredProjects.map((p) => {
-                  const latestVersion = p.versions[p.versions.length - 1] || { name: 'V1', date: new Date().toISOString() };
-                  return (
-                    <tr 
-                      key={p.id} 
-                      className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors cursor-pointer group"
-                      onClick={() => navigate(`/orcamentos/${p.id}`)}
-                    >
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all">
-                            <FileText size={20} />
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead>
+                  <tr className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 dark:text-zinc-400 text-[11px] font-black uppercase tracking-wider border-b border-gray-200 dark:border-gray-800">
+                    <th className="px-6 py-4">Projeto / Versão</th>
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Data</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {filteredProjects.map((p) => {
+                    const latestVersion = p.versions[p.versions.length - 1] || { name: 'V1', date: new Date().toISOString() };
+                    return (
+                      <tr 
+                        key={p.id} 
+                        className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors cursor-pointer group"
+                        onClick={() => navigate(`/orcamentos/${p.id}`)}
+                      >
+                        <td className="px-6 py-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all">
+                              <FileText size={20} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#ff6b00] transition-colors">{p.title}</span>
+                              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter mt-0.5">{latestVersion.name}</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#ff6b00] transition-colors">{p.title}</span>
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter mt-0.5">{latestVersion.name}</span>
+                        </td>
+                        <td className="px-6 py-5 text-gray-500 dark:text-gray-400 font-medium">{p.client}</td>
+                        <td className="px-6 py-5 text-gray-400 text-sm">{new Date(latestVersion.date).toLocaleDateString('pt-BR')}</td>
+                        <td className="px-6 py-5">
+                          <span className={cn(
+                            "px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-md border",
+                            p.status === 'Pendente' && "bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/30",
+                            p.status === 'Aprovado' && "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30",
+                            p.status === 'Concluído' && "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
+                          )}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-right">
+                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0" onClick={e => e.stopPropagation()}>
+                            <button onClick={async () => {
+                              await addProjectVersion(p.id);
+                              navigate(`/orcamentos/${p.id}`);
+                            }} className="p-2 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors" title="Duplicar Versão"><Copy size={16} /></button>
+                            <button onClick={() => handleDelete(p.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors" title="Excluir"><Trash2 size={16} /></button>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-gray-500 dark:text-gray-400 font-medium">{p.client}</td>
-                      <td className="px-6 py-5 text-gray-400 text-sm">{new Date(latestVersion.date).toLocaleDateString('pt-BR')}</td>
-                      <td className="px-6 py-5">
-                        <span className={cn(
-                          "px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-md border",
-                          p.status === 'Pendente' && "bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/30",
-                          p.status === 'Aprovado' && "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30",
-                          p.status === 'Concluído' && "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
-                        )}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0" onClick={e => e.stopPropagation()}>
-                          <button onClick={async () => {
-                            await addProjectVersion(p.id);
-                            navigate(`/orcamentos/${p.id}`);
-                          }} className="p-2 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors" title="Duplicar Versão"><Copy size={16} /></button>
-                          <button onClick={() => handleDelete(p.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors" title="Excluir"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredProjects.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-20 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <span className="text-4xl grayscale opacity-50 mb-2">📂</span>
+                          <p className="text-zinc-500 font-medium">Nenhum orçamento encontrado.</p>
+                          {searchQuery && (
+                            <button onClick={() => setSearchQuery('')} className="text-[#ff6b00] font-bold text-sm hover:underline">Limpar busca</button>
+                          )}
                         </div>
                       </td>
                     </tr>
-                  );
-                })}
-                {filteredProjects.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="text-4xl grayscale opacity-50 mb-2">📂</span>
-                        <p className="text-zinc-500 font-medium">Nenhum orçamento encontrado.</p>
-                        {searchQuery && (
-                          <button onClick={() => setSearchQuery('')} className="text-[#ff6b00] font-bold text-sm hover:underline">Limpar busca</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

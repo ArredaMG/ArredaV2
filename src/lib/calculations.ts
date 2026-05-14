@@ -1,123 +1,131 @@
 import { CostGroup, CostItem, ProjectVersion } from '../types';
 
-/**
- * Calcula o valor de venda baseado no custo e margem bruta (Gross Margin)
- * Fórmula: Custo / (1 - Margem)
- */
-export function calculateVenda(cost: number, marginPercent: number): number {
-  const margin = marginPercent / 100;
-  if (margin >= 1) return cost;
-  return cost / (1 - margin);
-}
-
-/**
- * Calcula o lucro (markup) baseado no custo e margem
- * Fórmula: Venda - Custo
- */
-export function calculateProfit(cost: number, marginPercent: number): number {
-  return calculateVenda(cost, marginPercent) - cost;
-}
-
-/**
- * Métricas completas de um item
- */
 export interface ItemMetrics {
   baseCost: number;
-  venda: number;
-  lucro: number;
-  isIH: boolean;
+  vendaValue: number;
+  profitValue: number;
+  taxValue: number;
+  totalFinal: number;
+  isInHouse: boolean;
 }
 
-export function getItemMetrics(item: CostItem, groupMargin: number, taxRate: number = 0): ItemMetrics & { valorMargem: number, valorImposto: number, totalFinal: number } {
-  const margin = item.margin !== undefined ? item.margin : groupMargin;
-  const baseCost = item.unitCost * item.quantity * (item.days || 1);
-  const venda = calculateVenda(baseCost, margin);
-  const totalFinal = taxRate < 100 ? venda / (1 - (taxRate / 100)) : venda;
-  
-  const lucro = venda - baseCost;
-  const valorImposto = totalFinal - venda;
-
-  return {
-    baseCost,
-    venda,
-    lucro,
-    valorMargem: lucro,
-    valorImposto,
-    totalFinal,
-    isIH: item.inHouse
-  };
-}
-
-/**
- * Métricas de uma categoria (grupo)
- */
 export interface GroupMetrics {
-  totalCusto: number;
-  totalVenda: number;
-  totalLucro: number;
-  totalLucroIH: number;
-}
-
-export function getGroupMetrics(group: CostGroup, defaultMargin: number): GroupMetrics {
-  const groupMargin = group.margin !== undefined ? group.margin : defaultMargin;
-  
-  return group.items.reduce((acc, item) => {
-    const metrics = getItemMetrics(item, groupMargin);
-    return {
-      totalCusto: acc.totalCusto + metrics.baseCost,
-      totalVenda: acc.totalVenda + metrics.venda,
-      totalLucro: acc.totalLucro + metrics.lucro,
-      totalLucroIH: acc.totalLucroIH + (item.inHouse ? metrics.lucro : 0)
-    };
-  }, { totalCusto: 0, totalVenda: 0, totalLucro: 0, totalLucroIH: 0 });
-}
-
-/**
- * Métricas globais da versão do projeto
- */
-export interface VersionTotals {
-  totalVenda: number;
   totalCost: number;
+  totalVenda: number;
   totalProfit: number;
   totalTax: number;
-  totalClient: number;
+  totalProposta: number;
+}
+
+export interface VersionTotals {
+  totalCost: number;
+  subtotal: number;
+  totalTax: number;
+  totalProposta: number;
+  totalProfit: number;
   totalExecuted: number;
   lucroReal: number;
 }
 
-export function calculateVersionTotals(version: ProjectVersion): VersionTotals {
-  let totalVenda = 0;
+/**
+ * 1. Cálculo de Venda (Markup Multiplicador):
+ *    - Custo Base = quantity * days * unitCost
+ *    - Valor de Venda = Custo Base * (1 + (margin / 100))
+ * 
+ * 2. Cálculo de Lucro (In-House vs Freelancer):
+ *    - Se isInHouse === true: Lucro = Valor de Venda
+ *    - Se isInHouse === false: Lucro = Valor de Venda - Custo Base
+ * 
+ * 3. Cálculo de Imposto (Markup Divisor / Gross-up):
+ *    - Valor Total Final = Valor de Venda / (1 - (taxRate / 100))
+ *    - Valor do Imposto = Valor Total Final - Valor de Venda
+ */
+
+export function getItemMetrics(item: CostItem, groupMargin: number, defaultTax: number): ItemMetrics {
+  const margin = item.customMargin !== undefined ? item.customMargin : groupMargin;
+  const taxRate = item.tax !== undefined ? item.tax : defaultTax;
+  const isInHouse = item.isInHouse === true;
+
+  const baseCost = (item.unitCost || 0) * (item.quantity || 1) * (item.days || 1);
+  const vendaValue = baseCost * (1 + (margin / 100));
+  
+  const profitValue = isInHouse ? vendaValue : (vendaValue - baseCost);
+  
+  let totalFinal = vendaValue;
+  if (taxRate > 0 && taxRate < 100) {
+    totalFinal = vendaValue / (1 - (taxRate / 100));
+  }
+  
+  const taxValue = totalFinal - vendaValue;
+
+  return {
+    baseCost,
+    vendaValue,
+    profitValue,
+    taxValue,
+    totalFinal,
+    isInHouse
+  };
+}
+
+export function getGroupMetrics(group: CostGroup, defaultMargin: number, defaultTax: number): GroupMetrics {
+  const groupMargin = group.margin !== undefined ? group.margin : defaultMargin;
+  
+  return group.items.reduce((acc, item) => {
+    const metrics = getItemMetrics(item, groupMargin, defaultTax);
+    
+    return {
+      totalCost: acc.totalCost + metrics.baseCost,
+      totalVenda: acc.totalVenda + metrics.vendaValue,
+      totalProfit: acc.totalProfit + metrics.profitValue,
+      totalTax: acc.totalTax + metrics.taxValue,
+      totalProposta: acc.totalProposta + metrics.totalFinal
+    };
+  }, {
+    totalCost: 0,
+    totalVenda: 0,
+    totalProfit: 0,
+    totalTax: 0,
+    totalProposta: 0
+  });
+}
+
+export function calculateProjectTotals(version: ProjectVersion): VersionTotals {
   let totalCost = 0;
+  let subtotal = 0;
+  let totalProfit = 0;
   let totalExecuted = 0;
 
   version.groups.forEach(group => {
     if (group.isActive === false) return;
     
-    const metrics = getGroupMetrics(group, version.defaultMargin);
-    totalVenda += metrics.totalVenda;
+    const metrics = getGroupMetrics(group, version.defaultMargin, version.defaultTax);
     
-    // Na lógica global, o custo "IH" é zero para fins de lucro total da empresa
+    totalCost += metrics.totalCost;
+    subtotal += metrics.totalVenda;
+    totalProfit += metrics.totalProfit;
+    
     group.items.forEach(item => {
-      const baseCost = item.unitCost * item.quantity * (item.days || 1);
-      totalCost += item.inHouse ? 0 : baseCost;
       totalExecuted += item.executedCost || 0;
     });
   });
 
-  const taxRate = version.defaultTax / 100;
-  const totalClient = taxRate < 1 ? totalVenda / (1 - taxRate) : totalVenda;
-  const totalTax = totalClient - totalVenda;
+  const taxRate = version.defaultTax || 0;
+  let totalProposta = subtotal;
   
-  const totalProfit = totalVenda - totalCost;
-  const lucroReal = (totalVenda - totalTax) - totalExecuted;
+  if (taxRate > 0 && taxRate < 100) {
+    totalProposta = subtotal / (1 - (taxRate / 100));
+  }
+  
+  const totalTax = totalProposta - subtotal;
 
   return {
-    totalVenda,
     totalCost,
-    totalProfit,
+    subtotal,
     totalTax,
-    totalClient,
+    totalProposta,
+    totalProfit,
     totalExecuted,
-    lucroReal
+    lucroReal: subtotal - totalExecuted
   };
 }
