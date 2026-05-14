@@ -65,23 +65,28 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
       return res.status(500).json({ error: 'Configuração do Google Drive ausente no servidor.' });
     }
 
-    let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+    let rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
 
-    if (privateKey) {
-      // 1. Remove aspas duplas ou simples no início e fim (comum em painéis de env)
-      privateKey = privateKey.replace(/^['"]|['"]$/g, '');
-      // 2. Converte \n literais em quebras de linha reais
-      privateKey = privateKey.replace(/\\n/g, '\n');
-      // 3. Garante que não existam espaços em branco desnecessários antes/depois
-      privateKey = privateKey.trim();
-    }
+    // 1. Limpeza radical: remove aspas, \n literais e espaços/quebras reais
+    let cleanKey = rawKey
+      .replace(/^['"]|['"]$/g, '') // Remove aspas nas pontas
+      .replace(/\\n/g, '')         // Remove \n escrito como texto
+      .replace(/\s+/g, '')         // Remove QUALQUER espaço ou quebra de linha real
+      .replace('-----BEGINPRIVATEKEY-----', '')
+      .replace('-----ENDPRIVATEKEY-----', '');
 
-    console.log("🔑 Verificação da Chave: Começa com:", privateKey?.substring(0, 25));
+    // 2. Reconstrói a chave no formato PEM oficial (64 chars por linha)
+    const header = "-----BEGIN PRIVATE KEY-----\n";
+    const footer = "\n-----END PRIVATE KEY-----";
+    const body = cleanKey.match(/.{1,64}/g)?.join('\n') || '';
+    const formattedKey = `${header}${body}${footer}`;
+
+    console.log("🔑 Verificação da Chave: Começa com:", formattedKey.substring(0, 36));
 
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: privateKey,
+        private_key: formattedKey,
       },
       scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
     });
