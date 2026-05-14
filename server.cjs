@@ -1,11 +1,29 @@
 console.log("🚨 [RADAR] O arquivo server.cjs foi executado com sucesso pela Hostinger!");
-const express = require('express');
-const cors = require('cors');
-const { google } = require('googleapis');
-const formidable = require('formidable');
-const fs = require('fs');
-const path = require('path');
-const dotenv = require('dotenv');
+
+process.on('uncaughtException', (err) => {
+  console.error('🚨 [FATAL ERROR - UNCAUGHT EXCEPTION]:', err.message);
+  console.error(err.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 [FATAL ERROR - UNHANDLED REJECTION]:', reason);
+});
+
+let express, cors, google, formidable, fs, path, dotenv;
+try {
+  express = require('express');
+  cors = require('cors');
+  ({ google } = require('googleapis'));
+  formidable = require('formidable');
+  fs = require('fs');
+  path = require('path');
+  dotenv = require('dotenv');
+} catch (err) {
+  console.error('🚨 [ERRO DE REQUIRE]:', err.message);
+}
+
+console.log('🚨 [RADAR 2] Dependências importadas com sucesso.');
+console.log('🚨 [RADAR 3] Iniciando validação de chaves e banco...');
 
 // Desativa dotenv na Hostinger, pois as envs vêm do painel
 if (process.env.NODE_ENV !== 'production' && !process.env.DATABASE_URL) {
@@ -17,6 +35,7 @@ if (process.env.NODE_ENV !== 'production' && !process.env.DATABASE_URL) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+console.log('🚨 [RADAR 4] Configurando Middlewares...');
 app.use(cors());
 app.use(express.json());
 
@@ -142,6 +161,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
+console.log('🚨 [RADAR 5] Entrando na chamada do app.listen na porta', PORT);
 app.listen(PORT, () => {
   console.log(`Servidor rodando limpo na porta ${PORT}`);
 });
