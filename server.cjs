@@ -1,3 +1,4 @@
+console.log("🚨 [RADAR] O arquivo server.cjs foi executado com sucesso pela Hostinger!");
 const express = require('express');
 const cors = require('cors');
 const { google } = require('googleapis');
