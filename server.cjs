@@ -67,19 +67,18 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
 
     let rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
 
-    // 1. Limpeza radical: remove aspas, \n literais e espaços/quebras reais
-    let cleanKey = rawKey
-      .replace(/^['"]|['"]$/g, '') // Remove aspas nas pontas
-      .replace(/\\n/g, '')         // Remove \n escrito como texto
-      .replace(/\s+/g, '')         // Remove QUALQUER espaço ou quebra de linha real
-      .replace('-----BEGINPRIVATEKEY-----', '')
-      .replace('-----ENDPRIVATEKEY-----', '');
+    // Purificação Atômica: isola apenas o corpo Base64 da chave
+    let cleanBody = rawKey
+      .replace('-----BEGIN PRIVATE KEY-----', '')
+      .replace('-----END PRIVATE KEY-----', '')
+      .replace(/\\n/g, '')  // Remove \n literal (texto)
+      .replace(/\n/g, '')   // Remove quebra de linha real
+      .replace(/\s/g, '')   // Remove espaços
+      .replace(/\\/g, '')   // Remove barras invertidas remanescentes
+      .trim();
 
-    // 2. Reconstrói a chave no formato PEM oficial (64 chars por linha)
-    const header = "-----BEGIN PRIVATE KEY-----\n";
-    const footer = "\n-----END PRIVATE KEY-----";
-    const body = cleanKey.match(/.{1,64}/g)?.join('\n') || '';
-    const formattedKey = `${header}${body}${footer}`;
+    // Reconstrói do zero no formato PEM rigoroso (64 chars por linha)
+    const formattedKey = `-----BEGIN PRIVATE KEY-----\n${cleanBody.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----`;
 
     console.log("🔑 Verificação da Chave: Começa com:", formattedKey.substring(0, 36));
 
