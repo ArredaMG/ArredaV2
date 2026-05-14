@@ -183,6 +183,57 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
   }
 });
 
+// ── DELETE de arquivo no Google Drive ────────────────────────────────────────
+app.delete('/api/delete-file/:fileId', ClerkExpressRequireAuth(), async (req, res) => {
+  const { fileId } = req.params;
+
+  if (!fileId) {
+    return res.status(400).json({ error: 'fileId é obrigatório.' });
+  }
+
+  try {
+    let rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
+    let cleanBody = rawKey
+      .replace('-----BEGIN PRIVATE KEY-----', '')
+      .replace('-----END PRIVATE KEY-----', '')
+      .replace(/\\n/g, '')
+      .replace(/\n/g, '')
+      .replace(/\s/g, '')
+      .replace(/\\/g, '')
+      .trim();
+    const formattedKey = `-----BEGIN PRIVATE KEY-----\n${cleanBody.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----`;
+
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: formattedKey,
+      },
+      scopes: ['https://www.googleapis.com/auth/drive'],
+    });
+
+    const drive = google.drive({ version: 'v3', auth });
+
+    console.log('🗑️ Deletando arquivo do Drive, fileId:', fileId);
+
+    await drive.files.delete({
+      fileId,
+      supportsAllDrives: true,
+    });
+
+    console.log('✅ Arquivo deletado com sucesso:', fileId);
+    return res.status(200).json({ success: true, message: 'Arquivo deletado com sucesso.' });
+
+  } catch (error) {
+    // Arquivo já não existe no Drive — trata como sucesso
+    if (error.code === 404 || (error.response && error.response.status === 404)) {
+      console.warn('⚠️ Arquivo não encontrado no Drive (já deletado?):', fileId);
+      return res.status(200).json({ success: true, message: 'Arquivo não encontrado, nada a deletar.' });
+    }
+    console.error('Erro ao deletar arquivo do Drive:', error);
+    return res.status(500).json({ error: 'Erro ao deletar arquivo.', details: error.message });
+  }
+});
+
 // Servir arquivos estáticos do frontend (CSS, JS, Imagens) gerados pelo Vite
 app.use(express.static(path.join(__dirname, 'dist')));
 

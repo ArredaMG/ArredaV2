@@ -27,6 +27,7 @@ export const Planilha: React.FC = () => {
   const [resourceToSave, setResourceToSave] = useState<CostItem | null>(null);
   const [isSavingResource, setIsSavingResource] = useState(false);
   const [uploadingItemIds, setUploadingItemIds] = useState<Set<string>>(new Set());
+  const [deletingItemIds, setDeletingItemIds] = useState<Set<string>>(new Set());
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, groupId: string, itemId: string, itemName: string) => {
@@ -79,6 +80,35 @@ export const Planilha: React.FC = () => {
         return newSet;
       });
       if (fileInputRefs.current[itemId]) fileInputRefs.current[itemId]!.value = '';
+    }
+  };
+
+  const handleDeleteAttachment = async (groupId: string, itemId: string, receiptLink: string) => {
+    // Extrai o fileId do link do Google Drive
+    // Formato: https://drive.google.com/file/d/FILE_ID/view
+    const match = receiptLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const fileId = match ? match[1] : null;
+
+    setDeletingItemIds(prev => new Set(prev).add(itemId));
+    try {
+      if (fileId) {
+        const res = await fetch(`/api/delete-file/${fileId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Erro ao deletar no Drive.');
+        }
+      }
+      // Limpa o link localmente e persiste no banco
+      handleUpdateItem(groupId, itemId, { receiptLink: '' });
+      setToastMessage('Anexo removido com sucesso!');
+    } catch (error: any) {
+      alert('Erro ao remover anexo: ' + error.message);
+    } finally {
+      setDeletingItemIds(prev => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
     }
   };
 
@@ -959,11 +989,14 @@ export const Planilha: React.FC = () => {
                                                 <Eye size={16} />
                                               </button>
                                               <button 
-                                                onClick={() => handleUpdateItem(group.id, item.id, { receiptLink: '' })}
-                                                className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                                                onClick={() => handleDeleteAttachment(group.id, item.id, item.receiptLink!)}
+                                                disabled={deletingItemIds.has(item.id)}
+                                                className="p-1 text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
                                                 title="Remover anexo"
                                               >
-                                                <Trash2 size={14} />
+                                                {deletingItemIds.has(item.id)
+                                                  ? <Loader2 size={14} className="animate-spin" />
+                                                  : <Trash2 size={14} />}
                                               </button>
                                             </>
                                           ) : uploadingItemIds.has(item.id) ? (
