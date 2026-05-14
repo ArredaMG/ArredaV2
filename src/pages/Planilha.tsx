@@ -73,10 +73,14 @@ export const Planilha: React.FC = () => {
         throw new Error(data.error || 'Erro no upload');
       }
 
+      console.log("🔗 Link retornado pelo servidor:", data.url);
+      console.log("💾 Atualizando banco de dados com o link novo...");
+      
       handleUpdateItem(groupId, itemId, { receiptLink: data.url });
       setToastMessage('Anexo salvo com sucesso!');
       
       // Persiste imediatamente no banco para evitar ID desatualizado
+      // Chamamos saveProject() para garantir que o estado dirty seja processado
       setTimeout(() => saveProject(), 100);
     } catch (error: any) {
       alert('Erro: ' + error.message);
@@ -91,9 +95,12 @@ export const Planilha: React.FC = () => {
   };
 
   const handleDeleteAttachment = async (groupId: string, itemId: string, receiptLink: string) => {
+    // Limpeza rigorosa da URL antes da extração
+    const cleanLink = (receiptLink || '').trim();
+    
     // Extrai o fileId do link do Google Drive
     // Suporta formatos /d/ID/view e ?id=ID
-    const match = receiptLink.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
+    const match = cleanLink.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
     const fileId = match ? (match[1] || match[2]) : null;
 
     setDeletingItemIds(prev => new Set(prev).add(itemId));
