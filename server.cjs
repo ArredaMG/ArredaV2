@@ -93,11 +93,13 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
     const drive = google.drive({ version: 'v3', auth });
 
     // 1. Procurar subpasta com projectName
-    const query = `'${rootFolderId}' in parents and name = '${projectName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    const query = `'${rootFolderId}' in parents and name = '${projectName.replace(/'/g, "\\'")}'  and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
     const searchRes = await drive.files.list({
       q: query,
       fields: 'files(id, name)',
       spaces: 'drive',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
     let folderId;
@@ -115,6 +117,7 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
       const folderRes = await drive.files.create({
         requestBody: folderMetadata,
         fields: 'id',
+        supportsAllDrives: true,
       });
       folderId = folderRes.data.id;
 
@@ -143,10 +146,13 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
       body: fs.createReadStream(file.filepath),
     };
 
+    console.log("📁 Enviando arquivo para a pasta ID:", folderId);
+
     const uploadRes = await drive.files.create({
       requestBody: fileMetadata,
       media: media,
       fields: 'id, webViewLink, webContentLink',
+      supportsAllDrives: true,
     });
 
     // Limpeza
