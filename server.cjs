@@ -1,18 +1,14 @@
-import express from 'express';
-import cors from 'cors';
-import { google } from 'googleapis';
-import formidable from 'formidable';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+const express = require('express');
+const cors = require('cors');
+const { google } = require('googleapis');
+const formidable = require('formidable');
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
 
 dotenv.config();
 // Se houver arquivo .env.local, carrega ele explicitamente para garantir as chaves locais no ambiente dev
 dotenv.config({ path: '.env.local' });
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
