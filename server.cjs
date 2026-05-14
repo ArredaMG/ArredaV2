@@ -147,7 +147,7 @@ app.post('/api/upload-drive', async (req, res) => {
   }
 });
 
-// Servir arquivos estáticos do frontend gerados pelo Vite
+// Servir arquivos estáticos do frontend (CSS, JS, Imagens) gerados pelo Vite
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Catch-all route para o React Router (SPA)
