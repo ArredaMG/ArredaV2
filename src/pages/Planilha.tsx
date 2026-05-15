@@ -131,7 +131,9 @@ export const Planilha: React.FC = () => {
     setDeletingItemIds(prev => new Set(prev).add(itemId));
     try {
       if (fileId) {
-        console.log('🗑️ Deletando fileId:', fileId, 'extraído de:', receiptLink);
+        console.log('🗑️ [AUDITORIA] Tentando deletar fileId:', fileId);
+        console.log('🔗 URL Original:', cleanLink);
+        
         const token = await getToken();
         const res = await fetch(`/api/delete-file/${fileId}`, {
           method: 'DELETE',

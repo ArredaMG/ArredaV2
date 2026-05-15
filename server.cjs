@@ -218,24 +218,48 @@ app.delete('/api/delete-file/:fileId', ClerkExpressRequireAuth(), async (req, re
 
     const drive = google.drive({ version: 'v3', auth });
 
-    console.log('🗑️ Deletando arquivo do Drive, fileId:', fileId);
+    console.log('🗑️ Movendo arquivo para a lixeira (Shared Drive), fileId:', fileId);
 
-    await drive.files.delete({
-      fileId,
-      supportsAllDrives: true,
-    });
+    try {
+      // Usar update({ trashed: true }) é mais resiliente em Shared Drives do que delete permanente
+      await drive.files.update({
+        fileId,
+        requestBody: {
+          trashed: true
+        },
+        supportsAllDrives: true,
+      });
 
-    console.log('✅ Arquivo deletado com sucesso:', fileId);
-    return res.status(200).json({ success: true, message: 'Arquivo deletado com sucesso.' });
+      console.log('✅ Arquivo movido para a lixeira com sucesso:', fileId);
+      return res.status(200).json({ success: true, message: 'Arquivo movido para a lixeira.' });
+
+    } catch (opError) {
+      // Se falhar ao mover para a lixeira (ex: não suportado por este drive), tenta o delete permanente
+      console.warn('⚠️ Falha ao mover para lixeira, tentando delete permanente:', opError.message);
+      
+      await drive.files.delete({
+        fileId,
+        supportsAllDrives: true,
+      });
+      
+      console.log('✅ Arquivo deletado permanentemente:', fileId);
+      return res.status(200).json({ success: true, message: 'Arquivo deletado permanentemente.' });
+    }
 
   } catch (error) {
-    // Arquivo já não existe no Drive — trata como sucesso
-    if (error.code === 404 || (error.response && error.response.status === 404)) {
+    // Arquivo já não existe no Drive — trata como sucesso para o banco de dados
+    const is404 = error.code === 404 || (error.response && error.response.status === 404);
+    if (is404) {
       console.warn('⚠️ Arquivo não encontrado no Drive (já deletado?):', fileId);
-      return res.status(200).json({ success: true, message: 'Arquivo não encontrado, nada a deletar.' });
+      return res.status(200).json({ success: true, message: 'Arquivo não encontrado, limpando referência.' });
     }
-    console.error('Erro ao deletar arquivo do Drive:', error);
-    return res.status(500).json({ error: 'Erro ao deletar arquivo.', details: error.message });
+    
+    console.error('❌ Erro crítico ao deletar arquivo do Drive:', error);
+    return res.status(500).json({ 
+      error: 'Erro ao deletar arquivo.', 
+      code: error.code,
+      details: error.message 
+    });
   }
 });
 
