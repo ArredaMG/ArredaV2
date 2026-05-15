@@ -172,6 +172,8 @@ app.post('/api/upload-drive', ClerkExpressRequireAuth(), async (req, res) => {
     // Limpeza do arquivo temporário
     fs.unlinkSync(file.filepath);
 
+    console.log("✅ Upload finalizado com sucesso no Drive. ID:", uploadRes.data.id);
+
     return res.status(200).json({
       status: 200,
       success: true,

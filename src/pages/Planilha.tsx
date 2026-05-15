@@ -57,11 +57,21 @@ export const Planilha: React.FC = () => {
       formData.append('itemName', itemName);
 
       const token = await getToken();
+      
+      // Timeout de Proteção: 60 segundos
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        alert("O upload está demorando mais que o esperado, verifique sua conexão.");
+      }, 60000);
+
       const res = await fetch('/api/upload-drive', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('text/html')) {
@@ -1030,7 +1040,12 @@ export const Planilha: React.FC = () => {
                                     <td className={cn("py-3 px-4 text-center transition-colors", project.status === 'Concluído' && item.executedCost && item.executedCost > 0 && !item.receiptLink ? "bg-yellow-50 dark:bg-yellow-900/20" : "")}>
                                       {project.status === 'Concluído' ? (
                                         <div className="flex items-center justify-center gap-2">
-                                          {item.receiptLink ? (
+                                          {uploadingItemIds.has(item.id) ? (
+                                            <div className="flex items-center gap-2">
+                                              <Loader2 size={18} className="animate-spin text-[#ff6b00]" />
+                                              <span className="text-[10px] font-bold text-zinc-400 animate-pulse">UPLOADING...</span>
+                                            </div>
+                                          ) : item.receiptLink ? (
                                             <>
                                               <button 
                                                 onClick={() => window.open(item.receiptLink, '_blank')}
@@ -1050,8 +1065,6 @@ export const Planilha: React.FC = () => {
                                                   : <Trash2 size={14} />}
                                               </button>
                                             </>
-                                          ) : uploadingItemIds.has(item.id) ? (
-                                            <Loader2 size={18} className="animate-spin text-[#ff6b00]" />
                                           ) : (
                                             <>
                                               <input
