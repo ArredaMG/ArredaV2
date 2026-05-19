@@ -49,7 +49,12 @@ export function getItemMetrics(item: CostItem, groupMargin: number, defaultTax: 
   const baseCost = (item.unitCost || 0) * (item.quantity || 1) * (item.days || 1);
   const vendaValue = baseCost * (1 + (margin / 100));
   
-  const profitValue = isInHouse ? vendaValue : (vendaValue - baseCost);
+  let profitValue = 0;
+  if (isInHouse) {
+    profitValue = vendaValue;
+  } else {
+    profitValue = vendaValue - baseCost;
+  }
   
   let totalFinal = vendaValue;
   if (taxRate > 0 && taxRate < 100) {
@@ -106,7 +111,10 @@ export function calculateProjectTotals(version: ProjectVersion): VersionTotals {
     totalProfit += metrics.totalProfit;
     
     group.items.forEach(item => {
-      totalExecuted += item.executedCost || 0;
+      if (!item.isInHouse) {
+        const itemBaseCost = (item.unitCost || 0) * (item.quantity || 1) * (item.days || 1);
+        totalExecuted += (item.executedCost && item.executedCost > 0) ? item.executedCost : itemBaseCost;
+      }
     });
   });
 

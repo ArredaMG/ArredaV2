@@ -52,6 +52,7 @@ export const fetchAllData = async () => {
             date: v.date,
             defaultTax: v.defaultTax,
             defaultMargin: v.defaultMargin,
+            propostaData: typeof (v as any).propostaData === 'string' ? JSON.parse((v as any).propostaData) : ((v as any).propostaData ?? undefined),
             groups: v.groups ? v.groups.map(g => ({
               id: g.id,
               name: g.name,
@@ -188,14 +189,16 @@ export const updateProject = async (id: string, updates: any) => {
                     name: version.name,
                     date: version.date,
                     defaultTax: version.defaultTax,
-                    defaultMargin: version.defaultMargin
+                    defaultMargin: version.defaultMargin,
+                    propostaData: version.propostaData
                 }).onConflictDoUpdate({
                     target: schema.projectVersions.id,
                     set: {
                         name: version.name,
                         date: version.date,
                         defaultTax: version.defaultTax,
-                        defaultMargin: version.defaultMargin
+                        defaultMargin: version.defaultMargin,
+                        propostaData: version.propostaData
                     }
                 });
 
@@ -331,6 +334,7 @@ export const updateProject = async (id: string, updates: any) => {
                 date: v.date,
                 defaultTax: v.defaultTax,
                 defaultMargin: v.defaultMargin,
+                propostaData: (v as any).propostaData ?? undefined,
                 groups: v.groups ? v.groups.map(g => ({
                     id: g.id,
                     name: g.name,
@@ -366,7 +370,8 @@ export const syncVersionWithDb = async (version: ProjectVersion) => {
       name: version.name,
       date: version.date,
       defaultTax: version.defaultTax,
-      defaultMargin: version.defaultMargin
+      defaultMargin: version.defaultMargin,
+      propostaData: version.propostaData
     }).where(eq(schema.projectVersions.id, version.id));
 
     const keptGroupIds = version.groups.filter(g => g.id).map(g => g.id);
@@ -488,6 +493,7 @@ export const syncVersionWithDb = async (version: ProjectVersion) => {
             date: v.date,
             defaultTax: v.defaultTax,
             defaultMargin: v.defaultMargin,
+            propostaData: typeof (v as any).propostaData === 'string' ? JSON.parse((v as any).propostaData) : ((v as any).propostaData ?? undefined),
             groups: v.groups ? v.groups.map(g => ({
                 id: g.id,
                 name: g.name,

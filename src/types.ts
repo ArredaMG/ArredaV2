@@ -22,6 +22,7 @@ export interface ProjectVersion {
   date: string;
   defaultTax: number;
   defaultMargin: number;
+  propostaData?: { briefingTitle?: string; briefingText?: string; paymentTerms?: string; observations?: string; showSubtotals?: boolean; investmentLines?: any[]; };
   groups: CostGroup[];
   // Calculated totals
   totalCost?: number;

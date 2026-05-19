@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Plus, Trash2, Home, Printer, Save, ArrowLeft, Link as LinkIcon, Copy, Info, X, UserPlus, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Check, Paperclip, Eye, Loader2, Lock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Home, Printer, Save, ArrowLeft, Link as LinkIcon, Copy, Info, X, UserPlus, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Check, Paperclip, Eye, Loader2, Lock, FileText } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useModal } from '../context/ModalContext';
 import { useAuth } from '@clerk/clerk-react';
@@ -9,7 +9,7 @@ import { CostGroup, CostItem, Project, ProjectVersion } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { getItemMetrics, calculateProjectTotals, getGroupMetrics } from '../lib/calculations';
-
+import { PropostaModal } from '../components/PropostaModal';
 export const Planilha: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -18,6 +18,7 @@ export const Planilha: React.FC = () => {
   const { openModal } = useModal();
   
   const [project, setProject] = useState<Project | null>(null);
+  const [showOS, setShowOS] = useState(false);
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [expandedPriceRows, setExpandedPriceRows] = useState<Set<string>>(new Set());
@@ -30,6 +31,9 @@ export const Planilha: React.FC = () => {
   const [isSavingResource, setIsSavingResource] = useState(false);
   const [uploadingItemIds, setUploadingItemIds] = useState<Set<string>>(new Set());
   const [deletingItemIds, setDeletingItemIds] = useState<Set<string>>(new Set());
+  const [isGeneralInfoExpanded, setIsGeneralInfoExpanded] = useState(false);
+  const [isFinancialHealthExpanded, setIsFinancialHealthExpanded] = useState(false);
+  const [isPaymentsExpanded, setIsPaymentsExpanded] = useState(false);
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, groupId: string, itemId: string, itemName: string) => {
@@ -496,6 +500,7 @@ export const Planilha: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-[#F5F5F7] dark:bg-[#000000] printable-area overflow-hidden">
+      <div className={showOS ? 'print:hidden flex flex-col h-full' : 'flex flex-col h-full'}>
       
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg font-medium animate-in fade-in slide-in-from-top-4">
@@ -503,305 +508,147 @@ export const Planilha: React.FC = () => {
         </div>
       )}
 
-      {/* ── CABEÇALHO (shrink-0) ───────────────────────── */}
-      <div className="shrink-0 bg-white dark:bg-[#1C1C1E] border-b border-gray-200 dark:border-gray-800 px-8 py-8 z-20 shadow-sm print:relative print:shadow-none print:border-b-2 print:border-gray-900 print:mb-8 text-black print:px-0">
-        <div className="max-w-[1400px] mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 print:hidden">
-                <ArrowLeft size={20} />
-              </button>
-              <h1 className="text-2xl font-bold tracking-tight">Ficha do Projeto</h1>
-            </div>
-            <div className="flex gap-2 print:hidden">
-              <button 
-                onClick={saveProject}
-                disabled={isSaving}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg text-white font-bold transition-colors relative",
-                  isSaving ? "bg-gray-400 cursor-not-allowed" : "bg-[#27ae60] hover:bg-[#219150]"
-                )}
-              >
-                {isDirty && !isSaving && <span className="absolute -top-1 -right-1 block h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white"></span>}
-                <Save size={18} className={isSaving ? "animate-spin" : ""} />
-                <span>{isSaving ? "SALVANDO..." : "SALVAR"}</span>
-              </button>
-              <button 
-                onClick={() => setIsSaveModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300 font-medium transition-colors"
-              >
-                <Save size={18} />
-                <span className="hidden md:inline">Template</span>
-              </button>
-              <AnimatePresence>
-              {isSaveModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="w-full max-w-sm bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-8"
-                  >
-                    <h3 className="text-xl font-bold mb-4">Salvar como Template</h3>
-                    <p className="text-sm text-gray-500 mb-6">Dê um nome para este padrão de orçamento para reutilizá-lo depois.</p>
-                    <input
-                      type="text"
-                      value={templateName}
-                      onChange={(e) => setTemplateName(e.target.value)}
-                      placeholder="Nome do Template"
-                      className="w-full bg-gray-100 dark:bg-gray-800 border-none rounded-xl p-4 mb-6 focus:ring-2 focus:ring-[#ff6b00] outline-none font-medium"
-                      autoFocus
-                    />
-                    <div className="flex justify-end gap-3">
-                      <button onClick={() => { setIsSaveModalOpen(false); setTemplateName(''); }} className="px-4 py-2 text-gray-500 font-medium hover:text-gray-700">Cancelar</button>
-                      <button 
-                        onClick={() => {
-                          if (templateName.trim()) {
-                            addTemplate({
-                              name: templateName,
-                              data: {
-                                groups: JSON.parse(JSON.stringify(activeVersion.groups)),
-                                defaultTax: activeVersion.defaultTax,
-                                defaultMargin: activeVersion.defaultMargin
-                              }
-                            });
-                            setToastMessage(`✅ Template ${templateName} salvo com sucesso!`);
-                            setIsSaveModalOpen(false);
-                            setTemplateName('');
-                          } else {
-                            alert("Por favor, digite um nome para o template.");
-                          }
-                        }}
-                        className="bg-[#ff6b00] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#ff8c00] transition-colors shadow-lg shadow-orange-500/20"
-                      >
-                        Salvar
-                      </button>
-                    </div>
-                  </motion.div>
-                </div>
-              )}
-              </AnimatePresence>
-              <button 
-                onClick={async () => {
-                  const newProj = await addProjectVersion(project.id, activeVersionId || undefined);
-                  if (newProj) {
-                    setActiveVersionId(newProj.versions[newProj.versions.length - 1].id);
-                  }
-                }} 
-                className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300 font-medium transition-colors"
-              >
-                <Copy size={18} />
-                <span className="hidden md:inline">Nova Versão</span>
-              </button>
-              <button 
-                onClick={() => {
-                  if (project.versions.length <= 1) {
-                    alert("Não é possível deletar a única versão do projeto.");
-                    return;
-                  }
-                  openModal({
-                    title: 'Excluir Versão',
-                    message: `Tem certeza que deseja deletar a ${activeVersion?.name} deste orçamento?`,
-                    onConfirm: () => {
-                      const currentVersionId = activeVersionId;
-                      const index = project.versions.findIndex(v => v.id === currentVersionId);
-                      const nextVersion = project.versions[index > 0 ? index - 1 : index + 1];
-                      setActiveVersionId(nextVersion.id);
-                      if (currentVersionId) {
-                        deleteProjectVersion(project.id, currentVersionId);
-                      }
-                    }
-                  });
-                }}
-                className="p-2 bg-red-100 dark:bg-red-900/20 text-red-600 hover:bg-red-200 dark:hover:bg-red-900/40 rounded-lg transition-colors"
-                title="Excluir Versão"
-              >
-                <Trash2 size={18} />
-              </button>
-              <button onClick={() => window.print()} className="flex items-center gap-2 p-2 px-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300 font-medium transition-colors">
-                <Printer size={18} />
-                <span className="hidden md:inline">PDF</span>
-              </button>
-            </div>
+      {/* ── CABEÇALHO FIXO DO TOPO (Título e Ações) ── */}
+      <div className="shrink-0 bg-white dark:bg-[#1C1C1E] border-b border-zinc-200 dark:border-zinc-800 px-8 py-4 z-20 shadow-sm print:relative print:shadow-none print:border-b-2 print:border-zinc-900 print:mb-8 text-black print:px-0">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-550 dark:text-zinc-400 print:hidden transition-colors">
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white uppercase tracking-wider">Ficha do Projeto</h1>
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-2 print:flex print:flex-col print:gap-4">
-            
-            {/* BOX 1: IDENTIFICAÇÃO */}
-            <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 shadow-sm flex flex-col gap-2">
-              <h3 className="text-[9px] font-black uppercase text-zinc-400 tracking-widest border-b border-zinc-100 dark:border-zinc-800/50 pb-1.5">Identificação</h3>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-0.5">ID Orçamento</label>
-                  <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/50 rounded-md px-2 py-1 border border-zinc-200 dark:border-zinc-700 focus-within:border-[#ff6b00] transition-colors">
-                    <span className="text-zinc-400 font-mono text-xs font-bold mr-1">{new Date(project.createdAt || new Date()).getFullYear()}-</span>
-                    <input
-                      type="number"
-                      value={project.projectNumber || ''}
-                      onChange={e => handleProjectUpdate({ projectNumber: Number(e.target.value) })}
-                      className="w-full bg-transparent border-none outline-none font-mono text-xs font-bold text-[#ff6b00]"
-                    />
+          <div className="flex gap-2 print:hidden overflow-x-auto pb-1 md:pb-0">
+            <button 
+              onClick={saveProject}
+              disabled={isSaving}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-white font-black text-xs uppercase tracking-widest transition-colors relative shadow-sm",
+                isSaving ? "bg-zinc-400 cursor-not-allowed" : "bg-[#27ae60] hover:bg-[#219150]"
+              )}
+            >
+              {isDirty && !isSaving && <span className="absolute -top-1 -right-1 block h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white animate-pulse"></span>}
+              <Save size={16} className={isSaving ? "animate-spin" : ""} />
+              <span>{isSaving ? "SALVANDO..." : "SALVAR"}</span>
+            </button>
+            <button 
+              onClick={() => setIsSaveModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl text-zinc-650 dark:text-zinc-300 font-black text-xs uppercase tracking-widest transition-colors border border-zinc-200/50 dark:border-zinc-700/50"
+            >
+              <Save size={16} />
+              <span>Template</span>
+            </button>
+            <AnimatePresence>
+            {isSaveModalOpen && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="w-full max-w-sm bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-8"
+                >
+                  <h3 className="text-xl font-black mb-2 text-zinc-900 dark:text-white uppercase tracking-tight">Salvar como Template</h3>
+                  <p className="text-xs text-zinc-550 dark:text-zinc-400 mb-6 font-medium leading-relaxed">Dê um nome para este padrão de orçamento para reutilizá-lo depois.</p>
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="Nome do Template"
+                    className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-6 focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 focus:outline-none transition-all font-medium text-sm text-zinc-800 dark:text-zinc-150"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => { setIsSaveModalOpen(false); setTemplateName(''); }} className="px-4 py-2 text-zinc-400 font-black text-xs uppercase tracking-widest hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">Cancelar</button>
+                    <button 
+                      onClick={() => {
+                        if (templateName.trim()) {
+                          addTemplate({
+                            name: templateName,
+                            data: {
+                              groups: JSON.parse(JSON.stringify(activeVersion.groups)),
+                              defaultTax: activeVersion.defaultTax,
+                              defaultMargin: activeVersion.defaultMargin
+                            }
+                          });
+                          setToastMessage(`✅ Template ${templateName} salvo com sucesso!`);
+                          setIsSaveModalOpen(false);
+                          setTemplateName('');
+                        } else {
+                          alert("Por favor, digite um nome para o template.");
+                        }
+                      }}
+                      className="bg-[#ff6b00] text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#e55e00] transition-colors shadow-lg shadow-orange-500/20"
+                    >
+                      Salvar
+                    </button>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-0.5">Status</label>
-                  <select
-                    value={project.status}
-                    onChange={e => handleProjectUpdate({ status: e.target.value as any })}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 outline-none focus:border-[#ff6b00] transition-colors font-bold text-xs text-zinc-700 dark:text-zinc-200"
-                  >
-                    <option value="Pendente">Pendente</option>
-                    <option value="Aprovado">Aprovado</option>
-                    <option value="Concluído">Concluído</option>
-                  </select>
-                </div>
+                </motion.div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-0.5">Título</label>
-                  <input
-                    type="text"
-                    value={project.title}
-                    onChange={e => handleProjectUpdate({ title: e.target.value })}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 outline-none focus:border-[#ff6b00] transition-colors font-bold text-xs text-zinc-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-0.5">Cliente</label>
-                  <input
-                    type="text"
-                    list="lista-clientes"
-                    value={project.client}
-                    onChange={e => handleProjectUpdate({ client: e.target.value })}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 outline-none focus:border-[#ff6b00] transition-colors font-bold text-xs text-[#ff6b00]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 shadow-sm flex flex-col gap-2">
-              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/50 pb-1.5">
-                <h3 className="text-[9px] font-black uppercase text-zinc-400 tracking-widest">Cronograma</h3>
-                {(project.recordingDates && project.recordingDates.length > 0) || (project.startDate && project.endDate) ? (
-                  <span className="text-[9px] font-bold bg-[#ff6b00]/10 text-[#ff6b00] px-2 py-0.5 rounded-full">
-                    Duração: {project.recordingDates?.length > 0 ? project.recordingDates.length : Math.ceil((new Date(project.endDate!).getTime() - new Date(project.startDate!).getTime()) / (1000 * 60 * 60 * 24)) + 1} dias
-                  </span>
-                ) : null}
-              </div>
-              
-              <div>
-                <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-0.5">Data do Orçamento</label>
-                <input
-                  type="date"
-                  value={activeVersion.date}
-                  onChange={e => handleVersionUpdate({ date: e.target.value })}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 outline-none focus:border-[#ff6b00] transition-colors font-bold text-xs text-zinc-700 dark:text-zinc-200"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-0.5">Adicionar Diária</label>
-                <div className="flex gap-2">
-                  <input
-                    type="date"
-                    value={newDate}
-                    onChange={e => setNewDate(e.target.value)}
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 outline-none focus:border-[#ff6b00] transition-colors font-bold text-xs text-zinc-700 dark:text-zinc-200"
-                  />
-                  <button
-                    onClick={() => {
-                      if (newDate && !project.recordingDates?.includes(newDate)) {
-                        handleProjectUpdate({ recordingDates: [...(project.recordingDates || []), newDate].sort() });
-                        setNewDate('');
-                      }
-                    }}
-                    className="bg-[#ff6b00]/10 text-[#ff6b00] border border-[#ff6b00]/20 rounded-md px-3 py-1 text-[10px] font-black uppercase tracking-widest hover:bg-[#ff6b00] hover:text-white transition-colors flex items-center justify-center whitespace-nowrap"
-                    title="Adicionar Diária"
-                  >
-                    <Plus size={14} strokeWidth={3} className="mr-1" /> Adicionar Diária
-                  </button>
-                </div>
-              </div>
-
-              {project.recordingDates && project.recordingDates.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {project.recordingDates.map((dateStr) => {
-                    // format dateStr (YYYY-MM-DD) to DD/MM
-                    const [year, month, day] = dateStr.split('-');
-                    const formattedDate = `${day}/${month}`;
-                    return (
-                      <div key={dateStr} className="flex items-center gap-1 bg-[#ff6b00]/10 text-[#ff6b00] border border-[#ff6b00]/20 rounded-full pl-2 pr-1 py-0.5 text-[10px] font-bold">
-                        <span>{formattedDate}</span>
-                        <button
-                          onClick={() => {
-                            handleProjectUpdate({ recordingDates: project.recordingDates.filter(d => d !== dateStr) });
-                          }}
-                          className="hover:bg-[#ff6b00]/20 rounded-full p-0.5 transition-colors"
-                        >
-                          <X size={10} strokeWidth={3} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* BOX 3: COMERCIAL */}
-            <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 shadow-sm flex flex-col gap-2 print:hidden">
-              <h3 className="text-[9px] font-black uppercase text-zinc-400 tracking-widest border-b border-zinc-100 dark:border-zinc-800/50 pb-1.5">Comercial</h3>
-              
-              <div>
-                <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-0.5">Margem Padrão</label>
-                <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 focus-within:border-[#ff6b00] transition-all">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={activeVersion.defaultMargin.toFixed(2)}
-                    onChange={e => {
-                      const val = parseFloat(e.target.value);
-                      handleVersionUpdate({ defaultMargin: isNaN(val) ? 0 : val });
-                    }}
-                    className="flex-1 bg-transparent border-none outline-none font-bold text-xs text-zinc-900 dark:text-zinc-100"
-                  />
-                  <span className="text-zinc-400 font-bold text-[10px]">%</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[9px] font-bold uppercase text-zinc-500 mb-0.5">Imposto / NF</label>
-                <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 focus-within:border-[#ff6b00] transition-all">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={activeVersion.defaultTax.toFixed(2)}
-                    onChange={e => {
-                      const val = parseFloat(e.target.value);
-                      handleVersionUpdate({ defaultTax: isNaN(val) ? 0 : val });
-                    }}
-                    className="flex-1 bg-transparent border-none outline-none font-bold text-xs text-zinc-900 dark:text-zinc-100"
-                  />
-                  <span className="text-zinc-400 font-bold text-[10px]">%</span>
-                </div>
-              </div>
-            </div>
-
+            )}
+            </AnimatePresence>
+            <button 
+              onClick={async () => {
+                const newProj = await addProjectVersion(project.id, activeVersionId || undefined);
+                if (newProj) {
+                  setActiveVersionId(newProj.versions[newProj.versions.length - 1].id);
+                }
+              }} 
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl text-zinc-650 dark:text-zinc-300 font-black text-xs uppercase tracking-widest transition-colors border border-zinc-200/50 dark:border-zinc-700/50"
+            >
+              <Copy size={16} />
+              <span>Nova Versão</span>
+            </button>
+            <button 
+              onClick={() => {
+                if (project.versions.length <= 1) {
+                  alert("Não é possível deletar a única versão do projeto.");
+                  return;
+                }
+                openModal({
+                  title: 'Excluir Versão',
+                  message: `Tem certeza que deseja deletar a ${activeVersion?.name} deste orçamento?`,
+                  onConfirm: () => {
+                    const currentVersionId = activeVersionId;
+                    const index = project.versions.findIndex(v => v.id === currentVersionId);
+                    const nextVersion = project.versions[index > 0 ? index - 1 : index + 1];
+                    setActiveVersionId(nextVersion.id);
+                    if (currentVersionId) {
+                      deleteProjectVersion(project.id, currentVersionId);
+                    }
+                  }
+                });
+              }}
+              className="p-2 bg-red-50 dark:bg-red-950/20 text-red-650 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-100 dark:border-red-900/20 rounded-xl transition-colors"
+              title="Excluir Versão"
+            >
+              <Trash2 size={16} />
+            </button>
+            <button onClick={() => setShowOS(true)} className="flex items-center gap-2 p-2 px-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl text-zinc-650 dark:text-zinc-300 font-black text-xs uppercase tracking-widest transition-colors border border-zinc-200/50 dark:border-zinc-700/50">
+              <FileText size={16} />
+              <span>Gerar Proposta</span>
+            </button>
+            <button onClick={() => window.print()} className="flex items-center gap-2 p-2 px-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl text-zinc-650 dark:text-zinc-300 font-black text-xs uppercase tracking-widest transition-colors border border-zinc-200/50 dark:border-zinc-700/50">
+              <Printer size={16} />
+              <span>PDF</span>
+            </button>
           </div>
+        </div>
+      </div>
 
-
-          {/* Version Selector */}
-          <div className="mt-8 flex items-center gap-2 overflow-x-auto pb-1 print:hidden">
+      {/* ── ÁREA DE SCROLL (flex-1) ─────────────────── */}
+      <div className="flex-1 overflow-y-auto px-8 py-8 pb-32">
+        <div className="max-w-[1400px] mx-auto w-full space-y-6">
+        
+          {/* Version Selector Tabs (Outside collapsible for supreme UX) */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1.5 print:hidden shrink-0">
             {project.versions.map(v => (
               <button
                 key={v.id}
                 onClick={() => setActiveVersionId(v.id)}
                 className={cn(
-                  "px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest transition-all border",
+                  "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm",
                   activeVersionId === v.id
                     ? "bg-[#ff6b00] text-white border-[#ff6b00] shadow-md shadow-orange-500/20"
-                    : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                    : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
                 )}
               >
                 {v.name}
@@ -814,17 +661,240 @@ export const Planilha: React.FC = () => {
                   setActiveVersionId(newProj.versions[newProj.versions.length - 1].id);
                 }
               }}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 text-[#ff6b00] hover:bg-[#ff6b00]/10 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-800 text-[#ff6b00] hover:bg-[#ff6b00]/10 transition-colors whitespace-nowrap"
             >
-              <Plus size={14} strokeWidth={3} /> Nova Versão
+              <Plus size={12} strokeWidth={3} /> Nova Versão
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* ── ÁREA DE SCROLL (flex-1) ─────────────────── */}
-      <div className="flex-1 overflow-y-auto px-8 py-8 pb-32">
-        <div className="max-w-[1400px] mx-auto w-full">
+          {/* SEÇÃO 1: INFORMAÇÕES GERAIS (Collapsible Accordion) */}
+          <div className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden print:border-none print:shadow-none print:bg-transparent transition-all">
+            <button
+              type="button"
+              onClick={() => setIsGeneralInfoExpanded(prev => !prev)}
+              className="w-full flex flex-col md:flex-row md:items-center justify-between p-5 hover:bg-zinc-50 dark:hover:bg-zinc-800/10 transition-all text-left print:hidden focus:outline-none"
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-[#ff6b00] p-1.5 rounded-lg bg-orange-500/10 dark:bg-orange-500/5 transition-transform duration-200">
+                  <motion.div
+                    animate={{ rotate: isGeneralInfoExpanded ? 90 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronRight size={18} strokeWidth={2.5} />
+                  </motion.div>
+                </div>
+                <div>
+                  <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">Informações Gerais</h2>
+                </div>
+              </div>
+
+              {!isGeneralInfoExpanded && (
+                <div className="mt-2 md:mt-0 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-1.5 rounded-xl border border-zinc-150 dark:border-zinc-800/80 tabular-nums uppercase tracking-widest flex flex-wrap gap-x-2 gap-y-1">
+                  <span>ID: <span className="font-bold text-[#ff6b00]">{new Date(project.createdAt || new Date()).getFullYear()}-{project.projectNumber || '—'}</span></span>
+                  <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                  <span>Status: <span className="font-bold text-zinc-700 dark:text-zinc-300">{project.status}</span></span>
+                  <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                  <span>Cliente: <span className="font-bold text-zinc-700 dark:text-zinc-300">{project.client || '—'}</span></span>
+                  <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                  <span>Margem: <span className="font-bold text-zinc-700 dark:text-zinc-300">{activeVersion.defaultMargin.toFixed(1)}%</span></span>
+                  <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                  <span>NF: <span className="font-bold text-zinc-700 dark:text-zinc-300">{activeVersion.defaultTax.toFixed(1)}%</span></span>
+                </div>
+              )}
+            </button>
+
+            {/* Print header version (always visible in print) */}
+            <div className="hidden print:block border-b border-zinc-250 dark:border-zinc-800 pb-4 mb-4">
+              <h2 className="text-xs font-black uppercase tracking-widest text-zinc-800 mb-2">Informações Gerais</h2>
+              <div className="text-xs font-mono text-zinc-700 grid grid-cols-3 gap-2">
+                <div><strong>ID Orçamento:</strong> {new Date(project.createdAt || new Date()).getFullYear()}-{project.projectNumber || '—'}</div>
+                <div><strong>Status:</strong> {project.status}</div>
+                <div><strong>Cliente:</strong> {project.client || '—'}</div>
+                <div><strong>Margem Padrão:</strong> {activeVersion.defaultMargin.toFixed(1)}%</div>
+                <div><strong>Imposto / NF:</strong> {activeVersion.defaultTax.toFixed(1)}%</div>
+              </div>
+            </div>
+
+            <AnimatePresence initial={false}>
+              {isGeneralInfoExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden border-t border-zinc-100 dark:border-zinc-800 print:!h-auto print:!opacity-100 print:border-none"
+                >
+                  <div className="p-6 bg-zinc-50/15 dark:bg-zinc-950/20 grid grid-cols-1 lg:grid-cols-3 gap-4 print:p-0 print:bg-transparent">
+                    
+                    {/* BOX 1: IDENTIFICAÇÃO */}
+                    <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-850 rounded-xl p-4 shadow-sm flex flex-col gap-3">
+                      <h3 className="text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 tracking-widest border-b border-zinc-100 dark:border-zinc-800/60 pb-1.5">Identificação</h3>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">ID Orçamento</label>
+                          <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 rounded-xl px-3 py-1.5 border border-zinc-200 dark:border-zinc-800 focus-within:border-[#ff6b00] focus-within:ring-2 focus-within:ring-[#ff6b00]/20 transition-all duration-200">
+                            <span className="text-zinc-400 font-mono text-xs font-bold mr-1">{new Date(project.createdAt || new Date()).getFullYear()}-</span>
+                            <input
+                              type="number"
+                              value={project.projectNumber || ''}
+                              onChange={e => handleProjectUpdate({ projectNumber: Number(e.target.value) })}
+                              className="w-full bg-transparent border-none outline-none font-mono text-xs font-bold text-[#ff6b00]"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Status</label>
+                          <select
+                            value={project.status}
+                            onChange={e => handleProjectUpdate({ status: e.target.value as any })}
+                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
+                          >
+                            <option value="Pendente">Pendente</option>
+                            <option value="Aprovado">Aprovado</option>
+                            <option value="Concluído">Concluído</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Título</label>
+                          <input
+                            type="text"
+                            value={project.title}
+                            onChange={e => handleProjectUpdate({ title: e.target.value })}
+                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-zinc-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Cliente</label>
+                          <input
+                            type="text"
+                            list="lista-clientes"
+                            value={project.client}
+                            onChange={e => handleProjectUpdate({ client: e.target.value })}
+                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-[#ff6b00]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* BOX 2: CRONOGRAMA */}
+                    <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-850 rounded-xl p-4 shadow-sm flex flex-col gap-3">
+                      <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-1.5">
+                        <h3 className="text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 tracking-widest">Cronograma</h3>
+                        {(project.recordingDates && project.recordingDates.length > 0) || (project.startDate && project.endDate) ? (
+                          <span className="text-[9px] font-black bg-[#ff6b00]/10 text-[#ff6b00] px-2.5 py-0.5 rounded-full font-mono tracking-tighter">
+                            DURAÇÃO: {project.recordingDates?.length > 0 ? project.recordingDates.length : Math.ceil((new Date(project.endDate!).getTime() - new Date(project.startDate!).getTime()) / (1000 * 60 * 60 * 24)) + 1} DIAS
+                          </span>
+                        ) : null}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Data do Orçamento</label>
+                        <input
+                          type="date"
+                          value={activeVersion.date}
+                          onChange={e => handleVersionUpdate({ date: e.target.value })}
+                          className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Adicionar Diária</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={newDate}
+                            onChange={e => setNewDate(e.target.value)}
+                            className="flex-1 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newDate && !project.recordingDates?.includes(newDate)) {
+                                handleProjectUpdate({ recordingDates: [...(project.recordingDates || []), newDate].sort() });
+                                setNewDate('');
+                              }
+                            }}
+                            className="bg-[#ff6b00]/10 text-[#ff6b00] border border-[#ff6b00]/20 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-[#ff6b00] hover:text-white transition-colors flex items-center justify-center whitespace-nowrap"
+                            title="Adicionar Diária"
+                          >
+                            <Plus size={14} strokeWidth={3} className="mr-1" /> Adicionar
+                          </button>
+                        </div>
+                      </div>
+
+                      {project.recordingDates && project.recordingDates.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {project.recordingDates.map((dateStr) => {
+                            const [year, month, day] = dateStr.split('-');
+                            const formattedDate = `${day}/${month}`;
+                            return (
+                              <div key={dateStr} className="flex items-center gap-1 bg-[#ff6b00]/10 text-[#ff6b00] border border-[#ff6b00]/20 rounded-full pl-2 pr-1 py-0.5 text-[10px] font-bold font-mono">
+                                <span>{formattedDate}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleProjectUpdate({ recordingDates: project.recordingDates.filter(d => d !== dateStr) });
+                                  }}
+                                  className="hover:bg-[#ff6b00]/20 rounded-full p-0.5 transition-colors"
+                                >
+                                  <X size={10} strokeWidth={3} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* BOX 3: COMERCIAL */}
+                    <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-850 rounded-xl p-4 shadow-sm flex flex-col gap-3 print:hidden">
+                      <h3 className="text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 tracking-widest border-b border-zinc-100 dark:border-zinc-800/60 pb-1.5">Comercial</h3>
+                      
+                      <div>
+                        <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Margem Padrão</label>
+                        <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 focus-within:border-[#ff6b00] focus-within:ring-2 focus-within:ring-[#ff6b00]/20 transition-all duration-200">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={activeVersion.defaultMargin.toFixed(2)}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value);
+                              handleVersionUpdate({ defaultMargin: isNaN(val) ? 0 : val });
+                            }}
+                            className="flex-1 bg-transparent border-none outline-none font-bold text-xs text-zinc-900 dark:text-zinc-100 font-mono tabular-nums"
+                          />
+                          <span className="text-zinc-400 font-bold text-[10px] font-mono">%</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Imposto / NF</label>
+                        <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 focus-within:border-[#ff6b00] focus-within:ring-2 focus-within:ring-[#ff6b00]/20 transition-all duration-200">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={activeVersion.defaultTax.toFixed(2)}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value);
+                              handleVersionUpdate({ defaultTax: isNaN(val) ? 0 : val });
+                            }}
+                            className="flex-1 bg-transparent border-none outline-none font-bold text-xs text-zinc-900 dark:text-zinc-100 font-mono tabular-nums"
+                          />
+                          <span className="text-zinc-400 font-bold text-[10px] font-mono">%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
         
         {isVersionLoading ? (
           <div className="flex flex-col items-center justify-center h-64">
@@ -848,6 +918,7 @@ export const Planilha: React.FC = () => {
                 const gTotalCost = metrics.totalCost;
                 const gTotalVenda = metrics.totalVenda;
                 const gTotalProfit = metrics.totalProfit;
+                const gTotalProposta = metrics.totalProposta;
                 const groupMargin = group.margin !== undefined ? group.margin : activeVersion.defaultMargin;
                 const isOverridden = group.margin !== undefined;
                 const taxRate = activeVersion.defaultTax || 0;
@@ -887,16 +958,16 @@ export const Planilha: React.FC = () => {
                         
                         <div className="flex items-center gap-2 overflow-x-auto">
                           <span className="px-3 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500 text-[10px] font-black uppercase tracking-widest border border-zinc-200 dark:border-zinc-700">
-                            Custo: {formatCurrency(gTotalCost)}
+                            Custo: <span className="font-mono tabular-nums">{formatCurrency(gTotalCost)}</span>
                           </span>
                           <span className={cn(
-                            "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
-                            isOverridden ? "bg-orange-50 text-orange-600 border-orange-200" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border-zinc-200 dark:border-zinc-700"
+                            "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all text-emerald-600 dark:text-green-400 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50",
+                            isOverridden && "ring-1 ring-emerald-500"
                           )}>
-                            Margem: {groupMargin.toFixed(1)}% {isOverridden && "*"}
+                            Lucro: <span className="font-mono tabular-nums font-bold">{formatCurrency(gTotalProfit)}</span> <span className="font-mono tabular-nums opacity-80">({groupMargin.toFixed(1)}%)</span> {isOverridden && "*"}
                           </span>
                           <span className="px-3 py-1 rounded-lg bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-orange-500/20">
-                            Venda: {formatCurrency(gTotalVenda)}
+                            Venda: <span className="font-mono tabular-nums">{formatCurrency(gTotalProposta)}</span>
                           </span>
                         </div>
                       </div>
@@ -986,10 +1057,20 @@ export const Planilha: React.FC = () => {
                                   </button>
                                 </td>
                                 <td className="py-3 px-4">
-                                    <input type="text" value={item.role || ''} onChange={e => handleUpdateItem(group.id, item.id, { role: e.target.value })} className="w-full bg-transparent outline-none font-medium text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-300" placeholder="Diretor de Arte..." />
+                                    <input 
+                                      type="text" 
+                                      list="lista-banco-cargos"
+                                      value={item.role || ''} 
+                                      onChange={e => handleUpdateItem(group.id, item.id, { role: e.target.value })} 
+                                      className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-3 py-1.5 outline-none font-bold text-xs text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 transition-all" 
+                                      placeholder="Diretor de Arte..." 
+                                    />
                                 </td>
                                 <td className="py-3 px-4">
                                   {(() => {
+                                    const filteredProfessionals = item.role ? professionals.filter(p => p.role === item.role) : professionals;
+                                    const filteredEquipments = item.role ? equipments.filter(e => e.category === item.role) : equipments;
+
                                     const isUnregistered =
                                       item.name.trim() !== '' &&
                                       !professionals.some(p => p.name === item.name) &&
@@ -998,33 +1079,60 @@ export const Planilha: React.FC = () => {
                                       <div className="relative flex items-center gap-1 group/name">
                                         <input
                                           type="text"
-                                          list="lista-banco-recursos"
+                                          list={`lista-banco-recursos-${item.id}`}
                                           value={item.name}
                                           onChange={e => handleUpdateItem(group.id, item.id, { name: e.target.value })}
-                                          className="w-full bg-transparent outline-none font-bold text-zinc-900 dark:text-white"
+                                          className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-3 py-1.5 outline-none font-bold text-xs text-zinc-900 dark:text-white transition-all"
+                                          placeholder="Nome ou Empresa..."
                                         />
+                                        <datalist id={`lista-banco-recursos-${item.id}`}>
+                                          {filteredProfessionals.map(p => <option key={`p-${p.id}`} value={p.name} />)}
+                                          {filteredEquipments.map(e => <option key={`e-${e.id}`} value={e.name} />)}
+                                        </datalist>
                                         {isUnregistered && (
-                                          <button
-                                            onClick={() => setResourceToSave(item)}
-                                            title={`Salvar "${item.name}" no banco`}
-                                            className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all opacity-0 group-hover/name:opacity-100 focus:opacity-100"
-                                          >
-                                            <UserPlus size={11} strokeWidth={2.5} />
-                                            <span className="text-[9px] font-black uppercase tracking-wider">Salvar</span>
-                                          </button>
+                                          <div className="flex-shrink-0 flex items-center gap-1.5">
+                                            <div data-tooltip="Este recurso não está cadastrado no Banco de Recursos. Clique em Salvar para registrá-lo.">
+                                              <AlertTriangle size={14} className="text-amber-500 cursor-help" />
+                                            </div>
+                                            <button
+                                              onClick={() => setResourceToSave(item)}
+                                              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all"
+                                            >
+                                              <UserPlus size={11} strokeWidth={2.5} />
+                                              <span className="text-[9px] font-black uppercase tracking-wider">Salvar</span>
+                                            </button>
+                                          </div>
                                         )}
                                       </div>
                                     );
                                   })()}
                                 </td>
                                 <td className="py-3 px-4 print:hidden text-right">
-                                    <input type="number" value={item.unitCost || ''} onChange={e => handleUpdateItem(group.id, item.id, { unitCost: Number(e.target.value) })} className="w-full bg-transparent outline-none text-right font-mono text-zinc-500" placeholder="0.00" />
+                                    <input 
+                                      type="number" 
+                                      value={item.unitCost || ''} 
+                                      onChange={e => handleUpdateItem(group.id, item.id, { unitCost: Number(e.target.value) })} 
+                                      className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-3 py-1.5 outline-none text-right font-mono text-xs font-bold text-zinc-500 dark:text-zinc-400 tabular-nums transition-all" 
+                                      placeholder="0.00" 
+                                    />
                                 </td>
                                 <td className="py-3 px-4 text-center">
-                                  <input type="number" min="1" value={item.quantity || 1} onChange={e => handleUpdateItem(group.id, item.id, { quantity: Number(e.target.value) })} className="w-12 bg-zinc-100 dark:bg-zinc-800 rounded-lg py-1 text-center font-bold" />
+                                  <input 
+                                    type="number" 
+                                    min="1" 
+                                    value={item.quantity || 1} 
+                                    onChange={e => handleUpdateItem(group.id, item.id, { quantity: Number(e.target.value) })} 
+                                    className="w-16 mx-auto bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-2 py-1.5 outline-none text-center font-mono text-xs font-bold tabular-nums transition-all" 
+                                  />
                                 </td>
                                 <td className="py-3 px-4 text-center">
-                                  <input type="number" min="1" value={item.days || 1} onChange={e => handleUpdateItem(group.id, item.id, { days: Number(e.target.value) })} className="w-12 bg-zinc-100 dark:bg-zinc-800 rounded-lg py-1 text-center font-bold" />
+                                  <input 
+                                    type="number" 
+                                    min="1" 
+                                    value={item.days || 1} 
+                                    onChange={e => handleUpdateItem(group.id, item.id, { days: Number(e.target.value) })} 
+                                    className="w-16 mx-auto bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-2 py-1.5 outline-none text-center font-mono text-xs font-bold tabular-nums transition-all" 
+                                  />
                                 </td>
                                 <td className="py-3 px-4 text-right font-black text-zinc-900 dark:text-white whitespace-nowrap">
                                   <div className="flex items-center justify-end gap-2">
@@ -1036,9 +1144,33 @@ export const Planilha: React.FC = () => {
                                 </td>
                                 {showFinancialControl && (
                                   <>
-                                    <td className={cn("py-3 px-4 transition-colors", project.status === 'Concluído' && item.executedCost && item.executedCost > 0 && !item.receiptLink ? "bg-yellow-50 dark:bg-yellow-900/20" : "bg-yellow-50/20 dark:bg-yellow-950/5")}>
-                                      <input type="number" value={item.executedCost || ''} onChange={e => handleUpdateItem(group.id, item.id, { executedCost: Number(e.target.value) })} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg py-1 px-2 text-right font-mono" placeholder="0.00" />
-                                    </td>
+                                    {(() => {
+                                      const isOverbudget = item.executedCost !== undefined && item.executedCost > metrics.baseCost;
+                                      const overbudgetDiff = item.executedCost ? item.executedCost - metrics.baseCost : 0;
+                                      return (
+                                        <td className={cn("py-3 px-4 transition-colors", project.status === 'Concluído' && item.executedCost && item.executedCost > 0 && !item.receiptLink ? "bg-yellow-50 dark:bg-yellow-900/20" : "bg-yellow-50/20 dark:bg-yellow-950/5")}>
+                                          <div className="relative flex items-center gap-2">
+                                            {isOverbudget && (
+                                              <div data-tooltip={`Atenção: Este item ultrapassou ${formatCurrency(overbudgetDiff)} do valor previsto!`}>
+                                                <AlertTriangle size={14} className="text-red-500 animate-pulse cursor-help flex-shrink-0" />
+                                              </div>
+                                            )}
+                                            <input 
+                                              type="number" 
+                                              value={item.executedCost || ''} 
+                                              onChange={e => handleUpdateItem(group.id, item.id, { executedCost: Number(e.target.value) })} 
+                                              className={cn(
+                                                "w-full rounded-lg py-1 px-2 text-right font-mono text-xs font-bold tabular-nums outline-none transition-all",
+                                                isOverbudget
+                                                  ? "bg-red-50/50 dark:bg-red-950/10 border border-red-300 dark:border-red-900/50 text-red-700 dark:text-red-400 focus:ring-2 focus:ring-red-500/20"
+                                                  : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20"
+                                              )} 
+                                              placeholder="0.00" 
+                                            />
+                                          </div>
+                                        </td>
+                                      );
+                                    })()}
                                     <td className={cn("py-3 px-4 text-center transition-colors", project.status === 'Concluído' && item.executedCost && item.executedCost > 0 && !item.receiptLink ? "bg-yellow-50 dark:bg-yellow-900/20" : "")}>
                                       {project.status === 'Concluído' ? (
                                         <div className="flex items-center justify-center gap-2">
@@ -1169,308 +1301,346 @@ export const Planilha: React.FC = () => {
             </div>
           </div>
         )}
+        
+        {/* FIM DA LISTA DE GRUPOS */}
         </div>
       </div>
 
-      {/* ── PAINEL DE SAÚDE FINANCEIRA ──────────────────────────────── */}
-      <AnimatePresence>
-        {showFinancialControl && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="shrink-0 bg-white dark:bg-[#111113] border-t-2 border-zinc-100 dark:border-zinc-800/80 px-8 py-5 print:hidden"
-          >
-            <div className="max-w-[1400px] mx-auto">
-              {/* Título do painel */}
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1.5 h-4 rounded-full bg-[#ff6b00]" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Painel de Saúde Financeira</span>
-                <span className={cn(
-                  "ml-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
-                  healthMetrics.totalOverbudget > 0
-                    ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400"
-                    : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
-                )}>
-                  {healthMetrics.totalOverbudget > 0 ? "⚠ Estouro detectado" : "✓ Dentro do previsto"}
-                </span>
+      {/* ── CONTAINER DO RODAPÉ FIXO COMPLETO (Acordeons + Totais) ───────────── */}
+      <div className="shrink-0 flex flex-col z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] print:hidden relative">
+        
+        {/* ACORDEON: ORDEM DE PAGAMENTOS (Topo) */}
+        {project.status === 'Concluído' && paymentList.length > 0 && (
+          <div className="bg-white dark:bg-[#1C1C1E] border-t border-zinc-200 dark:border-zinc-800 flex flex-col">
+            <button
+              type="button"
+              onClick={() => setIsPaymentsExpanded(prev => !prev)}
+              className="w-full flex items-center justify-between px-8 py-3 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors focus:outline-none"
+            >
+              <div className="flex items-center gap-3">
+                <motion.div animate={{ rotate: isPaymentsExpanded ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                  <ChevronRight size={16} className="text-zinc-400" />
+                </motion.div>
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">Ordem de Pagamentos</h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                {/* ─ CARD 1: Margem Planejada vs. Realizada ────────────────── */}
-                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Margem Operacional</span>
-                    {healthMetrics.realMarginPct >= (activeVersion.defaultMargin * 0.8)
-                      ? <TrendingUp size={15} className="text-emerald-500" />
-                      : <TrendingDown size={15} className="text-red-500" />}
-                  </div>
-
-                  {/* Barra comparativa */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
-                      <span>Planejada</span>
-                      <span>{activeVersion.defaultMargin.toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-emerald-400 transition-all duration-700"
-                        style={{ width: `${Math.min(activeVersion.defaultMargin, 100)}%` }}
-                      />
-                    </div>
-
-                    <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider"
-                      style={{ color: healthMetrics.realMarginPct < activeVersion.defaultMargin * 0.8 ? '#ef4444' : '#10b981' }}>
-                      <span>Realizada</span>
-                      <span>{healthMetrics.realMarginPct.toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-700",
-                          healthMetrics.realMarginPct >= activeVersion.defaultMargin * 0.8
-                            ? "bg-emerald-500"
-                            : "bg-red-400"
-                        )}
-                        style={{ width: `${Math.max(0, Math.min(healthMetrics.realMarginPct, 100))}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-end justify-between pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                    <span className="text-[9px] text-zinc-400 font-semibold">Lucro Real</span>
-                    <span className={cn(
-                      "font-black font-mono tabular-nums text-base",
-                      globals.lucroReal < 0 ? "text-red-500" : "text-emerald-500"
-                    )}>
-                      {formatCurrency(globals.lucroReal)}
-                    </span>
-                  </div>
+              {!isPaymentsExpanded && (
+                <div className="flex items-center gap-3 text-[10px] font-mono">
+                  <span className="text-zinc-500 font-bold uppercase tracking-widest">Pagamentos de Terceiros:</span>
+                  <span className="font-bold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 px-2 py-0.5 rounded shadow-sm border border-zinc-200 dark:border-zinc-700">
+                    {paymentList.length} {paymentList.length === 1 ? 'prestador' : 'prestadores'}
+                  </span>
+                  <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                  <span className="font-bold text-zinc-500 uppercase tracking-widest">Total a pagar:</span>
+                  <span className="font-black text-zinc-900 dark:text-white tabular-nums">
+                    {formatCurrency(paymentList.reduce((sum, r) => sum + r.amount, 0))}
+                  </span>
                 </div>
+              )}
+            </button>
 
-                {/* ─ CARD 2: Estouro de Orçamento ───────────────────────── */}
-                <div className={cn(
-                  "rounded-2xl border p-4 flex flex-col gap-3 transition-colors",
-                  healthMetrics.totalOverbudget > 0
-                    ? "border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20"
-                    : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50"
-                )}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Desvio de Custo</span>
-                    {healthMetrics.totalOverbudget > 0
-                      ? <AlertTriangle size={15} className="text-red-500" />
-                      : <ShieldCheck size={15} className="text-emerald-500" />}
+            <AnimatePresence initial={false}>
+              {isPaymentsExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden border-t border-zinc-100 dark:border-zinc-800"
+                >
+                  <div className="max-h-[300px] overflow-y-auto bg-white dark:bg-[#1C1C1E]">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-zinc-50/95 dark:bg-zinc-900/95 backdrop-blur-sm z-10 shadow-sm">
+                        <tr className="text-[9px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 dark:border-zinc-800">
+                          <th className="py-4 px-8 text-left">Recurso</th>
+                          <th className="py-4 px-4 text-left">Função</th>
+                          <th className="py-4 px-4 text-left">Chave PIX</th>
+                          <th className="py-4 px-4 text-right">Valor a Pagar</th>
+                          <th className="py-4 px-8 text-center w-32">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-50 dark:divide-zinc-900/50">
+                        {paymentList.map(row => {
+                          const isCopied = copiedPixId === row.id;
+                          const hasPix = row.pix !== 'Não cadastrado';
+                          return (
+                            <tr key={row.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-900/30 transition-colors">
+                              <td className="py-3 px-8 font-black text-zinc-900 dark:text-white text-xs">{row.name}</td>
+                              <td className="py-3 px-4 text-zinc-500 text-xs font-medium">{row.role}</td>
+                              <td className="py-3 px-4">
+                                <span className={cn(
+                                  "font-mono text-xs px-2 py-0.5 rounded-md",
+                                  hasPix
+                                    ? "bg-[#ff6b00]/10 text-[#ff6b00] border border-[#ff6b00]/20"
+                                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700 italic"
+                                )}>
+                                  {row.pix}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right font-black font-mono text-zinc-900 dark:text-white tabular-nums">
+                                {formatCurrency(row.amount)}
+                              </td>
+                              <td className="py-3 px-8 text-center">
+                                <button
+                                  onClick={() => handleCopyPix(row.id, row.pix)}
+                                  disabled={!hasPix}
+                                  title={hasPix ? `Copiar PIX: ${row.pix}` : 'PIX não cadastrado'}
+                                  className={cn(
+                                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                                    isCopied
+                                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+                                      : hasPix
+                                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-[#ff6b00] hover:text-[#ff6b00]"
+                                        : "bg-zinc-50 dark:bg-zinc-900/50 text-zinc-300 dark:text-zinc-600 cursor-not-allowed border border-transparent"
+                                  )}
+                                >
+                                  {isCopied
+                                    ? <><Check size={11} strokeWidth={3} /> Copiado!</>
+                                    : <><Copy size={11} strokeWidth={2.5} /> Copiar PIX</>}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-zinc-50/50 dark:bg-zinc-900/30 border-t border-zinc-100 dark:border-zinc-800">
+                          <td colSpan={3} className="py-4 px-8 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                            Total a Pagar (Terceiros)
+                          </td>
+                          <td className="py-4 px-4 text-right font-black font-mono text-lg text-zinc-900 dark:text-white tabular-nums">
+                            {formatCurrency(paymentList.reduce((sum, r) => sum + r.amount, 0))}
+                          </td>
+                          <td className="px-8" />
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
-
-                  {healthMetrics.totalOverbudget > 0 ? (
-                    <>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider mb-0.5">
-                          🚨 {healthMetrics.overbudgetItems} {healthMetrics.overbudgetItems === 1 ? 'item' : 'itens'} acima do planejado
-                        </span>
-                        <span className="font-black font-mono text-2xl text-red-500 tabular-nums">
-                          +{formatCurrency(healthMetrics.totalOverbudget)}
-                        </span>
-                        <span className="text-[9px] text-red-400 font-medium mt-0.5">além do previsto nos custos
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-auto pt-2 border-t border-red-100 dark:border-red-900/30">
-                        <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                        <span className="text-[9px] text-red-500 font-bold">Revise os itens executados em vermelho</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider mb-0.5">Execução dentro do orçado</span>
-                        <span className="font-black font-mono text-2xl text-emerald-500 tabular-nums">
-                          {formatCurrency(0)}
-                        </span>
-                        <span className="text-[9px] text-zinc-400 font-medium mt-0.5">nenhum item estourou o custo previsto</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                        <ShieldCheck size={12} className="text-emerald-400" />
-                        <span className="text-[9px] text-emerald-500 font-bold">Orçamento sob controle</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* ─ CARD 3: Break-Even e Cobertura ────────────────────── */}
-                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4 flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Break-Even</span>
-                    <ShieldCheck size={15} className="text-blue-400" />
-                  </div>
-
-                  <div className="flex flex-col">
-                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mb-0.5">Mínimo para não ter prejuízo</span>
-                    <span className="font-black font-mono text-2xl text-blue-500 tabular-nums">
-                      {formatCurrency(healthMetrics.breakEven)}
-                    </span>
-                    <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                      custo total + impostos = {formatCurrency(globals.totalCost)} + {formatCurrency(globals.totalTax)}
-                    </span>
-                  </div>
-
-                  {/* Cobertura: quanto da proposta já foi executado */}
-                  <div className="mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-1.5">
-                    <div className="flex justify-between text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
-                      <span>Execução vs. Break-Even</span>
-                      <span>{healthMetrics.breakEven > 0 ? Math.min(100, (globals.totalExecuted / healthMetrics.breakEven) * 100).toFixed(0) : 0}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-700",
-                          globals.totalExecuted > healthMetrics.breakEven ? "bg-red-400" : "bg-blue-400"
-                        )}
-                        style={{
-                          width: `${healthMetrics.breakEven > 0
-                            ? Math.min(100, (globals.totalExecuted / healthMetrics.breakEven) * 100)
-                            : 0}%`
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[9px] text-zinc-400 font-medium">
-                      <span>Executado: {formatCurrency(globals.totalExecuted)}</span>
-                      <span className={cn(
-                        "font-bold",
-                        globals.totalExecuted > healthMetrics.breakEven ? "text-red-500" : "text-zinc-500"
-                      )}>
-                        {globals.totalExecuted > healthMetrics.breakEven ? "ACIMA" : "ABAIXO"} do break-even
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
-      </AnimatePresence>
 
-      {/* ── ORDEM DE PAGAMENTOS ────────────────────────────────── */}
-      {project.status === 'Concluído' && paymentList.length > 0 && (
-        <div className="shrink-0 bg-white dark:bg-[#0d0d0f] border-t-2 border-zinc-100 dark:border-zinc-800/80 px-8 py-6 print:hidden">
-          <div className="max-w-[1400px] mx-auto">
+        {/* ACORDEON: SAÚDE FINANCEIRA (Meio) */}
+        {showFinancialControl && (
+          <div className="bg-white dark:bg-[#1C1C1E] border-t border-zinc-200 dark:border-zinc-800 flex flex-col">
+            <button
+              type="button"
+              onClick={() => setIsFinancialHealthExpanded(prev => !prev)}
+              className="w-full flex items-center justify-between px-8 py-3 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors focus:outline-none"
+            >
+              <div className="flex items-center gap-3">
+                <motion.div animate={{ rotate: isFinancialHealthExpanded ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                  <ChevronRight size={16} className="text-zinc-400" />
+                </motion.div>
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">Saúde Financeira</h2>
+              </div>
 
-            {/* Cabeçalho */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1.5 h-4 rounded-full bg-blue-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Ordem de Pagamentos</span>
-              <span className="ml-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
-                {paymentList.length} {paymentList.length === 1 ? 'freela' : 'freelas'}
-              </span>
-            </div>
+              {!isFinancialHealthExpanded && (
+                <div className="flex items-center gap-3 text-[10px] font-mono">
+                  <span className={cn(
+                    "px-2 py-0.5 rounded font-black uppercase tracking-wider",
+                    healthMetrics.totalOverbudget > 0
+                      ? "text-red-500 bg-red-50 dark:bg-red-950/30"
+                      : "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                  )}>
+                    {healthMetrics.totalOverbudget > 0 ? "⚠ Atenção" : "✓ Dentro do previsto"}
+                  </span>
+                  <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                  <span className="font-bold text-zinc-500 uppercase tracking-widest">Lucro Real:</span>
+                  <span className={cn("font-black tabular-nums", globals.lucroReal < 0 ? "text-red-500" : "text-emerald-500")}>
+                    {formatCurrency(globals.lucroReal)}
+                  </span>
+                </div>
+              )}
+            </button>
 
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-zinc-50 dark:bg-zinc-900/70 text-[9px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 dark:border-zinc-800">
-                    <th className="py-3 px-5 text-left">Recurso</th>
-                    <th className="py-3 px-4 text-left">Função</th>
-                    <th className="py-3 px-4 text-left">Chave PIX</th>
-                    <th className="py-3 px-4 text-right">Valor a Pagar</th>
-                    <th className="py-3 px-4 text-center w-28">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-50 dark:divide-zinc-900">
-                  {paymentList.map(row => {
-                    const isCopied = copiedPixId === row.id;
-                    const hasPix = row.pix !== 'Não cadastrado';
-                    return (
-                      <tr key={row.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-900/30 transition-colors">
-                        <td className="py-3 px-5 font-black text-zinc-900 dark:text-white text-xs">{row.name}</td>
-                        <td className="py-3 px-4 text-zinc-500 text-xs font-medium">{row.role}</td>
-                        <td className="py-3 px-4">
-                          <span className={cn(
-                            "font-mono text-xs px-2 py-0.5 rounded-md",
-                            hasPix
-                              ? "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/50"
-                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700 italic"
-                          )}>
-                            {row.pix}
+            <AnimatePresence initial={false}>
+              {isFinancialHealthExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden border-t border-zinc-100 dark:border-zinc-800"
+                >
+                  <div className="p-8 bg-zinc-50/15 dark:bg-zinc-950/20 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-[400px] overflow-y-auto">
+                    {/* CARD 1: Margem Planejada vs. Realizada */}
+                    <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-850 rounded-xl p-5 shadow-sm flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Margem Operacional</span>
+                        {healthMetrics.realMarginPct >= (activeVersion.defaultMargin * 0.8)
+                          ? <TrendingUp size={16} className="text-emerald-500" />
+                          : <TrendingDown size={16} className="text-red-500" />}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                          <span>Planejada</span>
+                          <span className="font-mono font-bold text-xs tabular-nums text-zinc-500">
+                            {formatCurrency(globals.totalCost * (activeVersion.defaultMargin / 100))} ({activeVersion.defaultMargin.toFixed(1)}%)
                           </span>
-                        </td>
-                        <td className="py-3 px-4 text-right font-black font-mono text-zinc-900 dark:text-white tabular-nums">
-                          {formatCurrency(row.amount)}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <button
-                            onClick={() => handleCopyPix(row.id, row.pix)}
-                            disabled={!hasPix}
-                            title={hasPix ? `Copiar PIX: ${row.pix}` : 'PIX não cadastrado'}
+                        </div>
+                        <div className="h-2.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-400 transition-all duration-700"
+                            style={{ width: `${Math.min(activeVersion.defaultMargin, 100)}%` }}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider mt-3"
+                          style={{ color: healthMetrics.realMarginPct < activeVersion.defaultMargin * 0.8 ? '#ef4444' : '#10b981' }}>
+                          <span>Realizada</span>
+                          <span className="font-mono font-bold text-xs tabular-nums">
+                            {formatCurrency(globals.lucroReal)} ({healthMetrics.realMarginPct.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <div className="h-2.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                          <div
                             className={cn(
-                              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
-                              isCopied
-                                ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
-                                : hasPix
-                                  ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60"
-                                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-300 dark:text-zinc-600 cursor-not-allowed border border-zinc-200 dark:border-zinc-700"
+                              "h-full rounded-full transition-all duration-700",
+                              healthMetrics.realMarginPct >= activeVersion.defaultMargin * 0.8
+                                ? "bg-emerald-500"
+                                : "bg-red-400"
                             )}
-                          >
-                            {isCopied
-                              ? <><Check size={11} strokeWidth={3} /> Copiado!</>
-                              : <><Copy size={11} strokeWidth={2.5} /> Copiar PIX</>}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-zinc-50 dark:bg-zinc-900/50 border-t-2 border-zinc-200 dark:border-zinc-800">
-                    <td colSpan={3} className="py-3 px-5 text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                      Total a Pagar (Terceiros)
-                    </td>
-                    <td className="py-3 px-4 text-right font-black font-mono text-lg text-zinc-900 dark:text-white tabular-nums">
-                      {formatCurrency(paymentList.reduce((sum, r) => sum + r.amount, 0))}
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                            style={{ width: `${Math.max(0, Math.min(healthMetrics.realMarginPct, 100))}%` }}
+                          />
+                        </div>
+                      </div>
 
+                      <div className="flex items-end justify-between mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                        <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Lucro Real</span>
+                        <span className={cn(
+                          "font-black font-mono tabular-nums text-xl leading-none",
+                          globals.lucroReal < 0 ? "text-red-500" : "text-emerald-500"
+                        )}>
+                          {formatCurrency(globals.lucroReal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* CARD 2: Estouro de Orçamento */}
+                    <div className={cn(
+                      "bg-white dark:bg-zinc-900/50 border rounded-xl p-5 shadow-sm flex flex-col gap-4 transition-colors",
+                      healthMetrics.totalOverbudget > 0
+                        ? "border-red-200 dark:border-red-900/50"
+                        : "border-zinc-200 dark:border-zinc-850"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Desvio de Custo</span>
+                        {healthMetrics.totalOverbudget > 0
+                          ? <AlertTriangle size={16} className="text-red-500" />
+                          : <ShieldCheck size={16} className="text-emerald-500" />}
+                      </div>
+
+                      {healthMetrics.totalOverbudget > 0 ? (
+                        <>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider mb-1">
+                              🚨 {healthMetrics.overbudgetItems} {healthMetrics.overbudgetItems === 1 ? 'item' : 'itens'} acima do planejado
+                            </span>
+                            <span className="font-black font-mono text-3xl text-red-500 tabular-nums">
+                              +{formatCurrency(healthMetrics.totalOverbudget)}
+                            </span>
+                            <span className="text-[10px] text-red-400 font-medium mt-1">além do previsto nos custos</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-auto pt-4 border-t border-red-100 dark:border-red-900/30">
+                            <div className="w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse" />
+                            <span className="text-[10px] text-red-500 font-bold">Revise os itens executados em vermelho</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider mb-1">Execução dentro do orçado</span>
+                            <span className="font-black font-mono text-3xl text-emerald-500 tabular-nums">
+                              {formatCurrency(0)}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-medium mt-1">nenhum item estourou o custo previsto</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                            <ShieldCheck size={14} className="text-emerald-400" />
+                            <span className="text-[10px] text-emerald-500 font-bold">Orçamento sob controle</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* CARD 3: Break-Even e Cobertura */}
+                    <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-850 rounded-xl p-5 shadow-sm flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Break-Even</span>
+                        <ShieldCheck size={16} className="text-blue-400" />
+                      </div>
+
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Mínimo para não ter prejuízo</span>
+                        <span className="font-black font-mono text-3xl text-blue-500 tabular-nums">
+                          {formatCurrency(healthMetrics.breakEven)}
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-medium mt-1">
+                          custo total + impostos = {formatCurrency(globals.totalCost)} + {formatCurrency(globals.totalTax)}
+                        </span>
+                      </div>
+
+                      <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
+                        <div className="flex justify-between text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                          <span>Execução vs. Break-Even</span>
+                          <span>{healthMetrics.breakEven > 0 ? Math.min(100, (globals.totalExecuted / healthMetrics.breakEven) * 100).toFixed(0) : 0}%</span>
+                        </div>
+                        <div className="h-2.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-700",
+                              globals.totalExecuted > healthMetrics.breakEven ? "bg-red-400" : "bg-blue-400"
+                            )}
+                            style={{
+                              width: `${healthMetrics.breakEven > 0
+                                ? Math.min(100, (globals.totalExecuted / healthMetrics.breakEven) * 100)
+                                : 0}%`
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-zinc-400 font-medium">
+                          <span>Executado: {formatCurrency(globals.totalExecuted)}</span>
+                          <span className={cn(
+                            "font-bold",
+                            globals.totalExecuted > healthMetrics.breakEven ? "text-red-500" : "text-zinc-500"
+                          )}>
+                            {globals.totalExecuted > healthMetrics.breakEven ? "ACIMA" : "ABAIXO"} do break-even
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── RODAPÉ (shrink-0) ───────────── */}
-      <div className="shrink-0 bg-white dark:bg-[#1C1C1E] border-t border-zinc-200 dark:border-zinc-800 px-8 py-6 z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] print:hidden">
-        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-          
-          <div className="flex items-center gap-10 overflow-x-auto w-full md:w-auto">
-            <div className="flex flex-col shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Custo Total: <span className="font-mono text-zinc-600 dark:text-zinc-400">{formatCurrency(globals.totalCost)}</span></span>
+        {/* BARRA PRINCIPAL DO RODAPÉ (Base) */}
+        <div className="bg-white dark:bg-[#1C1C1E] border-t border-zinc-200 dark:border-zinc-800 px-8 py-4">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-4">
+               {/* Espaço reservado para ações secundárias ou breadcrumbs */}
             </div>
-            <div className="flex flex-col shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Impostos ({activeVersion.defaultTax || 0}%): <span className="font-mono text-zinc-600 dark:text-zinc-400">{formatCurrency(globals.totalTax)}</span></span>
-            </div>
-            <div className="bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 flex flex-col shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">Lucro Operacional ({(activeVersion.defaultMargin || 0).toFixed(1)}%): <span className="font-mono text-emerald-600 font-bold">{formatCurrency(globals.totalProfit)}</span></span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6 w-full md:w-auto justify-end">
-            {showFinancialControl && (
-              <div className="bg-zinc-50 dark:bg-zinc-900/50 px-5 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-end shrink-0">
+            
+            <div className="flex items-center gap-8">
+              <div className="flex flex-col items-end">
                 <span className="text-[9px] font-black uppercase tracking-tighter text-zinc-400">Lucro Real (Executado)</span>
-                <span className={cn("font-mono font-black text-lg tabular-nums", globals.lucroReal < 0 ? "text-red-500" : "text-emerald-500")}>
+                <span className={cn("font-mono font-black text-xl tabular-nums", globals.lucroReal < 0 ? "text-red-500" : "text-emerald-500")}>
                   {formatCurrency(globals.lucroReal)}
                 </span>
               </div>
-            )}
-            
-            <div className="bg-[#ff6b00] px-8 py-4 rounded-2xl shadow-xl shadow-orange-500/30 flex flex-col items-end shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/70 mb-1">Total da Proposta</span>
-              <span className="font-mono font-black text-3xl text-white tabular-nums leading-none">{formatCurrency(globals.totalClient)}</span>
+              
+              <div className="bg-[#ff6b00] px-8 py-4 rounded-2xl shadow-xl shadow-orange-500/30 flex flex-col items-end">
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/80 mb-1">Total da Proposta</span>
+                <span className="font-mono font-black text-3xl text-white tabular-nums leading-none">{formatCurrency(globals.totalClient)}</span>
+              </div>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -1585,13 +1755,31 @@ export const Planilha: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <datalist id="lista-banco-recursos">
-        {professionals.map(p => <option key={p.id} value={p.name} />)}
-        {equipments.map(e => <option key={e.id} value={e.name} />)}
-      </datalist>
+      {(() => {
+        const uniqueRoles = Array.from(new Set([
+          ...professionals.map(p => p.role),
+          ...equipments.map(e => e.category)
+        ])).filter(Boolean);
+        return (
+          <datalist id="lista-banco-cargos">
+            {uniqueRoles.map(role => <option key={role} value={role} />)}
+          </datalist>
+        );
+      })()}
       <datalist id="lista-clientes">
         {clientes.map(c => <option key={c.id} value={c.nome} />)}
       </datalist>
+      </div>
+
+      {showOS && project && activeVersion && (
+        <PropostaModal
+          project={project}
+          activeVersion={activeVersion}
+          totalClient={globals.totalClient}
+          clientName={clientes.find(c => c.id === project.clientId)?.nome || 'Cliente não encontrado'}
+          onClose={() => setShowOS(false)}
+        />
+      )}
     </div>
   );
 };

@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Check, X, Search, Users, Camera, Briefcase, FileStack } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Search, Users, Camera, Briefcase, FileStack, FileText, Eye } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useModal } from '../context/ModalContext';
-import { Professional, Equipment, Client } from '../types';
+import { Professional, Equipment, Client, Project, ProjectVersion } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { PropostaModal } from '../components/PropostaModal';
 
 export const Recursos: React.FC = () => {
-  const { professionals, equipments, clientes, templates, addProfessional, updateProfessional, deleteProfessional, addEquipment, updateEquipment, deleteEquipment, addClient, deleteClient, deleteTemplate, setEditingTemplateId, addProject } = useAppContext();
+  const { projects, professionals, equipments, clientes, templates, addProfessional, updateProfessional, deleteProfessional, addEquipment, updateEquipment, deleteEquipment, addClient, deleteClient, deleteTemplate, setEditingTemplateId, addProject, loadVersionData } = useAppContext();
   const { openModal } = useModal();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'profissionais' | 'equipamentos' | 'clientes' | 'templates'>('profissionais');
+  const [activeTab, setActiveTab] = useState<'profissionais' | 'equipamentos' | 'clientes' | 'templates' | 'ordens'>('profissionais');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  const [selectedOSProject, setSelectedOSProject] = useState<Project | null>(null);
+  const [selectedOSVersion, setSelectedOSVersion] = useState<ProjectVersion | null>(null);
+  const [isLoadingOS, setIsLoadingOS] = useState<string | null>(null);
 
   // Reset search when changing tabs
   useEffect(() => {
@@ -33,6 +38,15 @@ export const Recursos: React.FC = () => {
   const filteredEquipments = equipments.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.category.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredClientes = clientes.filter(c => c.nome.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredTemplates = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const savedOSList = projects.flatMap(p => 
+    p.versions.filter(v => v.propostaData && Object.keys(v.propostaData).length > 0).map(v => ({ project: p, version: v }))
+  );
+  
+  const filteredOSList = savedOSList.filter(os => 
+    os.project.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    os.project.client.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleDeleteProf = (id: string) => {
     openModal({
@@ -92,6 +106,7 @@ export const Recursos: React.FC = () => {
     { id: 'equipamentos', label: 'Equipamentos', icon: Camera },
     { id: 'clientes', label: 'Clientes', icon: Briefcase },
     { id: 'templates', label: 'Templates', icon: FileStack },
+    { id: 'ordens', label: 'Ordens de Serviço', icon: FileText },
   ];
 
   return (
@@ -390,8 +405,99 @@ export const Recursos: React.FC = () => {
               </div>
             </div>
           )}
+
+          {activeTab === 'ordens' && (
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                      <tr className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 dark:text-zinc-400 text-[11px] font-black uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-800">
+                        <th className="px-6 py-4">O.S. Nº / Projeto</th>
+                        <th className="px-6 py-4">Cliente</th>
+                        <th className="px-6 py-4">Data da Versão</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4 w-24 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                      {filteredOSList.map((os) => (
+                        <tr key={os.version.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors group">
+                          <td className="px-6 py-5">
+                            <div className="font-bold text-gray-900 dark:text-white">{os.project.title}</div>
+                            <div className="text-xs text-zinc-500">O.S. {os.project.projectNumber || '---'} - {os.version.name}</div>
+                          </td>
+                          <td className="px-6 py-5 font-medium text-zinc-600 dark:text-zinc-300">{os.project.client}</td>
+                          <td className="px-6 py-5 text-zinc-500">{new Date(os.version.date).toLocaleDateString('pt-BR')}</td>
+                          <td className="px-6 py-5">
+                            <span className={cn(
+                              "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full",
+                              os.project.status === 'Concluído' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                              os.project.status === 'Aprovado' ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
+                              "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            )}>
+                              {os.project.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={async () => {
+                                  setIsLoadingOS(os.version.id);
+                                  await loadVersionData(os.version.id);
+                                  setIsLoadingOS(null);
+                                  
+                                  // Pegar a versão atualizada com os grupos
+                                  const updatedProject = projects.find(p => p.id === os.project.id);
+                                  const updatedVersion = updatedProject?.versions.find(v => v.id === os.version.id);
+                                  
+                                  if (updatedProject && updatedVersion) {
+                                    setSelectedOSProject(updatedProject);
+                                    setSelectedOSVersion(updatedVersion);
+                                  }
+                                }} 
+                                disabled={isLoadingOS === os.version.id}
+                                className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors shadow-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 disabled:opacity-50"
+                                title="Visualizar/Imprimir O.S."
+                              >
+                                {isLoadingOS === os.version.id ? <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div> : <Eye size={16} />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredOSList.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-20 text-center">
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="text-4xl grayscale opacity-50 mb-2">📄</span>
+                              <p className="text-zinc-500 font-medium">Nenhuma Ordem de Serviço salva encontrada.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* MODAL PROPOSTA LOCAL */}
+      {selectedOSProject && selectedOSVersion && (
+        <PropostaModal 
+          project={selectedOSProject}
+          activeVersion={selectedOSVersion}
+          totalClient={selectedOSVersion.totalClient || 0}
+          clientName={selectedOSProject.client}
+          onClose={() => {
+            setSelectedOSProject(null);
+            setSelectedOSVersion(null);
+          }}
+        />
+      )}
     </div>
   );
 };

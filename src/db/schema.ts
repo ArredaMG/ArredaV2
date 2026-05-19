@@ -26,6 +26,7 @@ export const projectVersions = pgTable('project_versions', {
   date: text('date').notNull(),
   defaultTax: doublePrecision('default_tax').notNull().default(0),
   defaultMargin: doublePrecision('default_margin').notNull().default(0),
+  propostaData: jsonb('proposta_data').$type<{ briefingTitle?: string; briefingText?: string; paymentTerms?: string; observations?: string; showSubtotals?: boolean; investmentLines?: any[]; }>().default({}),
 });
 
 export const costGroups = pgTable('cost_groups', {
