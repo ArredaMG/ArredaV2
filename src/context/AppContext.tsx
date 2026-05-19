@@ -23,6 +23,7 @@ export interface AppContextType {
   updateEquipment: (id: string, updates: Partial<Equipment>) => Promise<void>;
   deleteEquipment: (id: string) => Promise<void>;
   addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+  updateClient: (id: string, updates: Partial<Client>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
   addTemplate: (template: Omit<Template, 'id'>) => Promise<void>;
   deleteTemplate: (id: string) => Promise<void>;
@@ -426,6 +427,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const updateClient = async (id: string, updates: Partial<Client>) => {
+    const previousClients = [...clientes];
+    setClientes(prevList => prevList.map(c => c.id === id ? { ...c, ...updates } : c));
+    
+    try {
+        await dbService.updateClient(id, updates);
+    } catch (error) {
+        console.error('Erro ao atualizar cliente:', error);
+        setClientes(previousClients);
+        alert("Falha de conexão: As alterações no cliente foram desfeitas.");
+    }
+  };
+
   const deleteClient = async (id: string) => {
     const previousClients = [...clientes];
     setClientes(prev => prev.filter(c => c.id !== id));
@@ -506,7 +520,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addProject, updateProject, deleteProject, addProjectVersion, updateProjectVersion,
       addProfessional, updateProfessional, deleteProfessional,
       addEquipment, updateEquipment, deleteEquipment,
-      addClient, deleteClient,
+      addClient, updateClient, deleteClient,
       addTemplate, deleteTemplate, updateTemplate, deleteProjectVersion,
       isVersionLoading, loadVersionData, clearVersionData, refreshData
     }}>

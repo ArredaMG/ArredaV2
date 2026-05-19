@@ -547,8 +547,23 @@ export const addClient = async (client: any) => {
     await db.insert(schema.clients).values({
         id: client.id,
         nome: client.nome,
-        cnpj: client.cnpj
+        cnpj: client.cnpj,
+        contactName: client.contactName,
+        contactRole: client.contactRole,
+        whatsapp: client.whatsapp,
+        email: client.email,
+        leadSource: client.leadSource,
+        website: client.website,
+        instagramCompany: client.instagramCompany,
+        linkedinCompany: client.linkedinCompany,
+        youtubeCompany: client.youtubeCompany,
+        instagramContact: client.instagramContact,
+        linkedinContact: client.linkedinContact
     });
+};
+
+export const updateClient = async (id: string, updates: any) => {
+    await db.update(schema.clients).set(updates).where(eq(schema.clients.id, id));
 };
 
 export const deleteClient = async (id: string) => {

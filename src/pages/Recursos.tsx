@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Check, X, Search, Users, Camera, Briefcase, FileStack, FileText, Eye } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Trash2, Edit2, Check, X, Search, Users, Camera, Briefcase, FileStack, FileText, Eye, MessageCircle } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useModal } from '../context/ModalContext';
 import { Professional, Equipment, Client, Project, ProjectVersion } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { ClientProfileDrawer } from '../components/ClientProfileDrawer';
 import { PropostaModal } from '../components/PropostaModal';
 
 export const Recursos: React.FC = () => {
@@ -17,6 +18,12 @@ export const Recursos: React.FC = () => {
   const [selectedOSProject, setSelectedOSProject] = useState<Project | null>(null);
   const [selectedOSVersion, setSelectedOSVersion] = useState<ProjectVersion | null>(null);
   const [isLoadingOS, setIsLoadingOS] = useState<string | null>(null);
+  const [selectedClientIdForDrawer, setSelectedClientIdForDrawer] = useState<string | null>(null);
+
+  const selectedClientForDrawer = useMemo(() => {
+    if (!selectedClientIdForDrawer) return null;
+    return clientes.find(c => c.id === selectedClientIdForDrawer) || null;
+  }, [clientes, selectedClientIdForDrawer]);
 
   // Reset search when changing tabs
   useEffect(() => {
@@ -292,12 +299,14 @@ export const Recursos: React.FC = () => {
           {activeTab === 'clientes' && (
             <div className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
               <div className="w-full overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[600px]">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 dark:text-zinc-400 text-[11px] font-black uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-800">
-                      <th className="px-6 py-4">Nome / Razão Social</th>
-                      <th className="px-6 py-4">CNPJ</th>
-                      <th className="px-6 py-4 w-24 text-right">Ação</th>
+                      <th className="px-6 py-4">Empresa / Razão Social</th>
+                      <th className="px-6 py-4">Contato Principal</th>
+                      <th className="px-6 py-4">WhatsApp</th>
+                      <th className="px-6 py-4">Origem</th>
+                      <th className="px-6 py-4 w-32 text-right">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -305,7 +314,7 @@ export const Recursos: React.FC = () => {
                       <td className="px-4 py-4">
                         <input 
                           type="text" 
-                          placeholder="Adicionar novo cliente..." 
+                          placeholder="Nome da empresa..." 
                           value={newClientData.nome || ''} 
                           onChange={e => setNewClientData({...newClientData, nome: e.target.value})} 
                           className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 outline-none focus:border-orange-500 text-sm font-bold" 
@@ -319,6 +328,9 @@ export const Recursos: React.FC = () => {
                           onChange={e => setNewClientData({...newClientData, cnpj: e.target.value})} 
                           className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 outline-none focus:border-orange-500 text-sm font-mono" 
                         />
+                      </td>
+                      <td className="px-4 py-4" colSpan={2}>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500 italic font-medium">Cadastre contatos, CRM e redes digitais clicando no botão Raio-X do cliente.</span>
                       </td>
                       <td className="px-4 py-4 text-right">
                         <button 
@@ -336,10 +348,70 @@ export const Recursos: React.FC = () => {
                     </tr>
                     {filteredClientes.map(c => (
                       <tr key={c.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors group">
-                        <td className="px-6 py-5 font-bold text-gray-900 dark:text-white">{c.nome}</td>
-                        <td className="px-6 py-5 text-zinc-500 dark:text-zinc-400 font-mono text-sm">{c.cnpj}</td>
+                        <td className="px-6 py-5">
+                          <div className="font-bold text-gray-900 dark:text-white">{c.nome}</div>
+                          {c.cnpj && <div className="text-xs text-zinc-400 dark:text-zinc-500 font-mono mt-0.5">{c.cnpj}</div>}
+                        </td>
+                        <td className="px-6 py-5">
+                          {c.contactName ? (
+                            <div>
+                              <div className="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">{c.contactName}</div>
+                              {c.contactRole && <div className="text-xs text-zinc-500">{c.contactRole}</div>}
+                            </div>
+                          ) : (
+                            <span className="text-zinc-400 text-xs italic">Não informado</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-5">
+                          {c.whatsapp ? (
+                            <a 
+                              href={`https://wa.me/${c.whatsapp.replace(/\D/g,'')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 transition-all shadow-sm"
+                            >
+                              <MessageCircle size={12} className="text-emerald-500" />
+                              {c.whatsapp}
+                            </a>
+                          ) : (
+                            <span className="text-zinc-400 text-xs italic">Não informado</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-5">
+                          {c.leadSource ? (
+                            <span className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400">
+                              {c.leadSource}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400 text-xs italic">Não informado</span>
+                          )}
+                        </td>
                         <td className="px-6 py-5 text-right">
-                          <button onClick={() => deleteClient(c.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all"><Trash2 size={16} /></button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => setSelectedClientIdForDrawer(c.id)}
+                              className="p-2 text-zinc-600 hover:text-[#ff6b00] hover:bg-orange-50 dark:text-zinc-400 dark:hover:bg-zinc-800 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm"
+                              title="Ver Raio-X do Cliente"
+                            >
+                              <Eye size={14} />
+                              <span>Raio-X</span>
+                            </button>
+                            <button 
+                              onClick={() => {
+                                openModal({
+                                  title: 'Excluir Cliente',
+                                  message: `Tem certeza que deseja excluir o cliente "${c.nome}"? Esta ação não afetará os orçamentos já criados.`,
+                                  onConfirm: () => {
+                                    deleteClient(c.id);
+                                  }
+                                });
+                              }}
+                              className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all"
+                              title="Excluir Cliente"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -496,6 +568,14 @@ export const Recursos: React.FC = () => {
             setSelectedOSProject(null);
             setSelectedOSVersion(null);
           }}
+        />
+      )}
+
+      {/* GAVETA DE CLIENTE (RAIO-X) */}
+      {selectedClientForDrawer && (
+        <ClientProfileDrawer
+          client={selectedClientForDrawer}
+          onClose={() => setSelectedClientIdForDrawer(null)}
         />
       )}
     </div>

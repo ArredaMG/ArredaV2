@@ -5,6 +5,17 @@ export const clients = pgTable('clients', {
   id: uuid('id').defaultRandom().primaryKey(),
   nome: text('name').notNull(),
   cnpj: text('cnpj'),
+  contactName: text('contact_name'),
+  contactRole: text('contact_role'),
+  whatsapp: text('whatsapp'),
+  email: text('email'),
+  leadSource: text('lead_source'),
+  website: text('website'),
+  instagramCompany: text('instagram_company'),
+  linkedinCompany: text('linkedin_company'),
+  youtubeCompany: text('youtube_company'),
+  instagramContact: text('instagram_contact'),
+  linkedinContact: text('linkedin_contact'),
 });
 
 export const projects = pgTable('projects', {

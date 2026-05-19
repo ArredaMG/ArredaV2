@@ -3,7 +3,18 @@ export type ProjectStatus = 'Pendente' | 'Aprovado' | 'Concluído';
 export interface Client {
   id: string;
   nome: string;
-  cnpj: string;
+  cnpj?: string;
+  contactName?: string | null;
+  contactRole?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  leadSource?: string | null;
+  website?: string | null;
+  instagramCompany?: string | null;
+  linkedinCompany?: string | null;
+  youtubeCompany?: string | null;
+  instagramContact?: string | null;
+  linkedinContact?: string | null;
 }
 
 export interface Template {
