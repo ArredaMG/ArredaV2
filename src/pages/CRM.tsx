@@ -24,7 +24,7 @@ import * as dbService from '../services/db-services';
 import { Pipeline, Stage, Deal, Client } from '../types';
 
 export const CRM: React.FC = () => {
-  const { clientes, addProject, templates, refreshData } = useAppContext();
+  const { clientes, addProject, templates, refreshData, updateClient } = useAppContext();
   const navigate = useNavigate();
   
   // Local state
@@ -750,6 +750,7 @@ export const CRM: React.FC = () => {
                       setIsCreateModalOpen(true);
                     }}
                     className="p-1.5 hover:bg-gray-200 dark:hover:bg-[#2C2C2E] rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                    title="Nova Oportunidade nesta Coluna"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -823,6 +824,7 @@ export const CRM: React.FC = () => {
                                   openEditModal(deal);
                                 }}
                                 className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                title="Detalhes da Oportunidade"
                               >
                                 <Edit3 className="h-3.5 w-3.5" />
                               </button>
@@ -832,6 +834,7 @@ export const CRM: React.FC = () => {
                                   handleDeleteDeal(deal.id);
                                 }}
                                 className="p-1 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-500"
+                                title="Excluir Oportunidade"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -997,149 +1000,121 @@ export const CRM: React.FC = () => {
       {/* Editing Deal Modal */}
       {isEditModalOpen && editingDeal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl scale-up">
-            <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-[#252529]/30">
+          <div className="bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl scale-up flex flex-col max-h-[90vh]">
+            
+            <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-[#252529]/30 shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Edit3 className="h-5 w-5 text-[#ff6b00]" />
-                Detalhes da Oportunidade
+                Detalhes da Oportunidade e Cliente
               </h2>
-              <button 
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingDeal(null);
-                  resetForm();
-                }}
-                className="text-gray-400 hover:text-gray-900 dark:hover:text-white text-lg font-bold"
-              >
-                &times;
-              </button>
+              <button onClick={() => { setIsEditModalOpen(false); setEditingDeal(null); resetForm(); }} className="text-gray-400 hover:text-gray-900 dark:hover:text-white text-lg font-bold">&times;</button>
             </div>
 
-            <form onSubmit={handleUpdateDeal} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">
-                  Cliente Vinculado *
-                </label>
-                <select
-                  required
-                  value={dealClientId}
-                  onChange={(e) => setDealClientId(e.target.value)}
-                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]"
-                >
-                  {clientes.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">
-                  Título da Oportunidade *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={dealTitle}
-                  onChange={(e) => setDealTitle(e.target.value)}
-                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+              {/* Lado Esquerdo: Negociação */}
+              <div className="flex-1 p-6 overflow-y-auto space-y-5 border-r border-gray-100 dark:border-gray-800">
+                <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-4">Dados da Negociação</h3>
+                
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">
-                    Valor Estimado (R$)
-                  </label>
-                  <input
-                    type="text"
-                    value={dealValue}
-                    onChange={(e) => setDealValue(e.target.value)}
-                    className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#ff6b00]"
-                  />
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Título da Oportunidade *</label>
+                  <input type="text" required value={dealTitle} onChange={(e) => setDealTitle(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor Estimado (R$)</label>
+                    <input type="text" value={dealValue} onChange={(e) => setDealValue(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#ff6b00]" />
+                    <span className="text-[9px] text-gray-400 mt-1 block">* Sincroniza com a aba de Orçamentos</span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Próxima Ação</label>
+                    <input type="date" value={dealNextActionDate} onChange={(e) => setDealNextActionDate(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">
-                    Próxima Ação
-                  </label>
-                  <input
-                    type="date"
-                    value={dealNextActionDate}
-                    onChange={(e) => setDealNextActionDate(e.target.value)}
-                    className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]"
-                  />
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Estágio Comercial</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button type="button" onClick={() => setDealStatus('open')} className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${dealStatus === 'open' ? 'bg-blue-500/10 text-blue-500 border-blue-500' : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400 hover:border-gray-400'}`}>Em Negociação</button>
+                    <button type="button" onClick={() => setDealStatus('won')} className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${dealStatus === 'won' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500' : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400 hover:border-gray-400'}`}>Ganho</button>
+                    <button type="button" onClick={() => setDealStatus('lost')} className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${dealStatus === 'lost' ? 'bg-red-500/10 text-red-500 border-red-500' : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400 hover:border-gray-400'}`}>Perdido</button>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setDealStatus('open')}
-                  className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${
-                    dealStatus === 'open'
-                      ? 'bg-blue-500/10 text-blue-500 border-blue-500'
-                      : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400'
-                  }`}
-                >
-                  Em Negociação
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDealStatus('won')}
-                  className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${
-                    dealStatus === 'won'
-                      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500'
-                      : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400'
-                  }`}
-                >
-                  Ganho
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDealStatus('lost')}
-                  className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${
-                    dealStatus === 'lost'
-                      ? 'bg-red-500/10 text-red-500 border-red-500'
-                      : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400'
-                  }`}
-                >
-                  Perdido
-                </button>
-              </div>
+              {/* Lado Direito: Cliente */}
+              <div className="w-full md:w-96 bg-gray-50 dark:bg-[#1C1C1E]/50 p-6 overflow-y-auto space-y-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Perfil do Cliente</h3>
+                </div>
 
-              <div className="pt-4 flex gap-3 border-t border-gray-100 dark:border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleDeleteDeal(editingDeal.id);
-                    setIsEditModalOpen(false);
-                    setEditingDeal(null);
-                    resetForm();
-                  }}
-                  className="px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center"
-                  title="Excluir Oportunidade"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditModalOpen(false);
-                    setEditingDeal(null);
-                    resetForm();
-                  }}
-                  className="flex-1 bg-gray-100 dark:bg-[#2C2C2E] hover:bg-gray-200 dark:hover:bg-[#3A3A3C] text-gray-800 dark:text-white py-3 rounded-xl text-sm font-semibold transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-[#ff6b00] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors"
-                >
-                  Salvar
-                </button>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Empresa Vinculada *</label>
+                  <select required value={dealClientId} onChange={(e) => setDealClientId(e.target.value)} className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-transparent text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]">
+                    <option value="">Selecione um cliente...</option>
+                    {clientes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                {dealClientId && (() => {
+                  const client = clientes.find(c => c.id === dealClientId);
+                  if (!client) return null;
+                  return (
+                    <div className="space-y-5 pt-4 border-t border-gray-200 dark:border-gray-800">
+                      {client.contactName && (
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Contato Principal</span>
+                          <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{client.contactName} {client.contactRole && <span className="text-xs font-normal text-gray-500">({client.contactRole})</span>}</span>
+                        </div>
+                      )}
+                      
+                      <div>
+                        <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Canais de Contato</span>
+                        <div className="flex flex-col gap-2">
+                          {client.contacts?.map((c, i) => (
+                            <div key={i} className="flex items-center justify-between bg-white dark:bg-[#2C2C2E] p-2 rounded-lg border border-gray-200 dark:border-transparent text-xs font-medium text-gray-700 dark:text-gray-300">
+                              <span className="truncate">{c.value}</span>
+                              <button type="button" onClick={() => {
+                                const newContacts = client.contacts!.filter((_, index) => index !== i);
+                                updateClient(client.id, { contacts: newContacts });
+                              }} className="text-gray-400 hover:text-red-500" title="Remover Contato"><Trash2 size={12} /></button>
+                            </div>
+                          ))}
+                          <div className="flex gap-2 mt-2">
+                            <input type="text" id="quickContactInput" placeholder="Adicionar número, e-mail..." className="flex-1 bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-transparent rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-[#ff6b00]" onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const val = e.currentTarget.value.trim();
+                                if (val) {
+                                  const newContacts = [...(client.contacts || []), { type: 'website', value: val }];
+                                  updateClient(client.id, { contacts: newContacts });
+                                  e.currentTarget.value = '';
+                                }
+                              }
+                            }}/>
+                            <button type="button" onClick={() => {
+                              const input = document.getElementById('quickContactInput') as HTMLInputElement;
+                              const val = input.value.trim();
+                              if (val) {
+                                const newContacts = [...(client.contacts || []), { type: 'website', value: val }];
+                                updateClient(client.id, { contacts: newContacts });
+                                input.value = '';
+                              }
+                            }} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 py-2 rounded-lg text-xs font-bold transition-colors">Add</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
-            </form>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50/50 dark:bg-[#252529]/30 border-t border-gray-100 dark:border-gray-800 flex gap-3 shrink-0">
+              <button type="button" onClick={() => { handleDeleteDeal(editingDeal.id); setIsEditModalOpen(false); setEditingDeal(null); resetForm(); }} className="px-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center" title="Excluir Oportunidade"><Trash2 className="h-4 w-4" /></button>
+              <button type="button" onClick={() => { setIsEditModalOpen(false); setEditingDeal(null); resetForm(); }} className="flex-1 bg-gray-100 dark:bg-[#2C2C2E] hover:bg-gray-200 dark:hover:bg-[#3A3A3C] text-gray-800 dark:text-white py-3 rounded-xl text-sm font-semibold transition-colors">Cancelar</button>
+              <button type="button" onClick={handleUpdateDeal} className="flex-1 bg-[#ff6b00] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors">Salvar Alterações</button>
+            </div>
           </div>
         </div>
       )}

@@ -210,6 +210,7 @@ export const Planilha: React.FC = () => {
         recordingDates: currentProject.recordingDates,
         startDate: currentProject.startDate,
         endDate: currentProject.endDate,
+        dealValue: globals.totalClient
       });
 
       if (currentVersionId) {
