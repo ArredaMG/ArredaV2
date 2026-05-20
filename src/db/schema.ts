@@ -9,6 +9,7 @@ export const clients = pgTable('clients', {
   contactRole: text('contact_role'),
   leadSource: text('lead_source'),
   contacts: jsonb('contacts').$type<{ type: string; value: string }[]>().default([]),
+  decisores: jsonb('decisores').$type<{ id: string; name: string; role: string; contacts: { type: string; value: string }[] }[]>().default([]),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -126,7 +127,7 @@ export const deals = pgTable('deals', {
   status: text('status').notNull().default('open'), // 'open' | 'won' | 'lost'
   lossReason: text('loss_reason'),
   notes: text('notes'),
-  dealContacts: jsonb('deal_contacts').$type<{ id: string; name: string; role: string; contacts: { type: string; value: string }[] }[]>().default([]),
+  linkedDecisores: jsonb('linked_decisores').$type<string[]>().default([]),
   nextActionDate: timestamp('next_action_date'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

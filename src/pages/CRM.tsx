@@ -90,7 +90,11 @@ export const CRM: React.FC = () => {
 
   const [dealLossReason, setDealLossReason] = useState<string>('');
   const [dealNotes, setDealNotes] = useState<string>('');
-  const [dealContacts, setDealContacts] = useState<{ id: string; name: string; role: string; contacts: { type: string; value: string }[] }[]>([]);
+  const [linkedDecisores, setLinkedDecisores] = useState<string[]>([]);
+  const [newDecisorName, setNewDecisorName] = useState<string>('');
+  const [newDecisorRole, setNewDecisorRole] = useState<string>('');
+  const [newDecisorContact, setNewDecisorContact] = useState<string>('');
+  const [isAddingNewDecisor, setIsAddingNewDecisor] = useState<boolean>(false);
 
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
@@ -412,7 +416,7 @@ export const CRM: React.FC = () => {
       nextActionDate,
       lossReason: dealStatus === 'lost' ? dealLossReason : null,
       notes: dealNotes,
-      dealContacts: dealContacts,
+      linkedDecisores: linkedDecisores,
     };
 
     // Optimistic insert state
@@ -473,7 +477,7 @@ export const CRM: React.FC = () => {
       clientId: dealClientId,
       lossReason: dealStatus === 'lost' ? dealLossReason : null,
       notes: dealNotes,
-      dealContacts: dealContacts,
+      linkedDecisores: linkedDecisores,
     };
 
     // Optimistic Update
@@ -590,13 +594,7 @@ export const CRM: React.FC = () => {
     setDealStatus(deal.status);
     setDealLossReason(deal.lossReason || '');
     setDealNotes(deal.notes || '');
-    const loadedContacts = (deal.dealContacts || []).map((c: any) => ({
-      id: c.id || uuidv4(),
-      name: c.name || '',
-      role: c.role || '',
-      contacts: c.contacts || (c.contact ? [{ type: detectContactType(c.contact), value: c.contact }] : [])
-    }));
-    setDealContacts(loadedContacts);
+    setLinkedDecisores(deal.linkedDecisores || []);
     
     if (deal.nextActionDate) {
       const date = new Date(deal.nextActionDate);
@@ -617,7 +615,11 @@ export const CRM: React.FC = () => {
     setDealStatus('open');
     setDealLossReason('');
     setDealNotes('');
-    setDealContacts([]);
+    setLinkedDecisores([]);
+    setNewDecisorName('');
+    setNewDecisorRole('');
+    setNewDecisorContact('');
+    setIsAddingNewDecisor(false);
   };
 
   // Check if date is overdue
@@ -905,6 +907,10 @@ export const CRM: React.FC = () => {
                       const overdue = isDateOverdue(deal.nextActionDate);
                       const isToday = isDateToday(deal.nextActionDate);
 
+                      const clientRecord = clientes.find(c => c.id === deal.clientId);
+                      const linkedDecisoresIds = deal.linkedDecisores || [];
+                      const linkedDecisoresObjects = clientRecord?.decisores?.filter(d => linkedDecisoresIds.includes(d.id)) || [];
+
                       return (
                         <div
                           key={deal.id}
@@ -996,24 +1002,68 @@ export const CRM: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Calendar / Action Date Alarm */}
-                          {deal.nextActionDate && (
+                          {/* Calendar / Action Date Alarm or Avatar Stack */}
+                          {(deal.nextActionDate || linkedDecisoresObjects.length > 0) && (
                             <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#3A3A3C]/50 flex items-center gap-1.5">
-                              <Calendar className={`h-3.5 w-3.5 ${
-                                overdue ? 'text-red-500' : isToday ? 'text-amber-500' : 'text-gray-400'
-                              }`} />
-                              <span className={`text-[11px] font-bold ${
-                                overdue 
-                                  ? 'text-red-500' 
-                                  : isToday 
-                                    ? 'text-amber-500' 
-                                    : 'text-gray-500 dark:text-gray-400'
-                              }`}>
-                                {overdue ? 'Atrasado: ' : isToday ? 'Hoje: ' : ''}
-                                {new Date(deal.nextActionDate).toLocaleDateString('pt-BR')}
-                              </span>
-                              {overdue && (
-                                <AlertCircle className="h-3 w-3 text-red-500 ml-auto animate-pulse" />
+                              {deal.nextActionDate && (
+                                <>
+                                  <Calendar className={`h-3.5 w-3.5 ${
+                                    overdue ? 'text-red-500' : isToday ? 'text-amber-500' : 'text-gray-400'
+                                  }`} />
+                                  <span className={`text-[11px] font-bold ${
+                                    overdue 
+                                      ? 'text-red-500' 
+                                      : isToday 
+                                        ? 'text-amber-500' 
+                                        : 'text-gray-500 dark:text-gray-400'
+                                  }`}>
+                                    {overdue ? 'Atrasado: ' : isToday ? 'Hoje: ' : ''}
+                                    {new Date(deal.nextActionDate).toLocaleDateString('pt-BR')}
+                                  </span>
+                                  {overdue && (
+                                    <AlertCircle className="h-3.5 w-3.5 text-red-500 ml-0.5 animate-pulse" />
+                                  )}
+                                </>
+                              )}
+                              
+                              {/* Avatar Stack with linked decisores */}
+                              {linkedDecisoresObjects.length > 0 && (
+                                <div className="flex -space-x-1.5 overflow-hidden ml-auto">
+                                  {linkedDecisoresObjects.slice(0, 3).map((decisor, idx) => {
+                                    const nameParts = decisor.name.trim().split(' ');
+                                    const initials = nameParts.length > 1 
+                                      ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+                                      : (nameParts[0][0] || '').toUpperCase();
+                                    const bgColors = [
+                                      'bg-amber-50 text-white',
+                                      'bg-indigo-50 text-white',
+                                      'bg-rose-50 text-white',
+                                      'bg-teal-50 text-white',
+                                      'bg-purple-50 text-white',
+                                    ];
+                                    const colorClass = bgColors[idx % bgColors.length];
+                                    return (
+                                      <div 
+                                        key={decisor.id} 
+                                        className={cn(
+                                          "inline-flex items-center justify-center h-5 w-5 rounded-full text-[9px] font-black border border-white dark:border-[#1C1C1E] shadow-sm select-none",
+                                          colorClass
+                                        )}
+                                        title={`${decisor.name} - ${decisor.role}`}
+                                      >
+                                        {initials}
+                                      </div>
+                                    );
+                                  })}
+                                  {linkedDecisoresObjects.length > 3 && (
+                                    <div 
+                                      className="inline-flex items-center justify-center h-5 w-5 rounded-full text-[8px] font-black border border-white dark:border-[#1C1C1E] bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 shadow-sm"
+                                      title={`${linkedDecisoresObjects.length - 3} mais`}
+                                    >
+                                      +{linkedDecisoresObjects.length - 3}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}
@@ -1215,102 +1265,266 @@ export const CRM: React.FC = () => {
               </div>
 
               {/* Lado Direito: Perfil do Cliente & Contatos */}
-              <div className="w-full md:w-96 bg-gray-50 dark:bg-[#1C1C1E]/50 p-6 overflow-y-auto space-y-5">
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-4">Perfil da Empresa</h3>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Empresa Vinculada *</label>
-                  <select required value={dealClientId} onChange={(e) => setDealClientId(e.target.value)} className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]">
-                    <option value="">Selecione um cliente...</option>
-                    {clientes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
+              {(() => {
+                const currentClient = clientes.find(c => c.id === dealClientId);
+                const clientDecisores = currentClient?.decisores || [];
+                const linkedDecisoresObjects = clientDecisores.filter(d => linkedDecisores.includes(d.id));
+                const unlinkedDecisores = clientDecisores.filter(d => !linkedDecisores.includes(d.id));
 
-                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-3">Pessoas (Decisores)</h3>
-                  
-                  <div className="flex flex-col gap-3 mb-3">
-                    {dealContacts.map((person, idx) => (
-                      <div key={person.id} className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex flex-col gap-2 shadow-sm transition-all focus-within:border-[#ff6b00]/50">
-                        
-                        {/* NOME E CARGO EDITÁVEIS */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex flex-col flex-1 gap-1">
-                            <input 
-                              type="text" 
-                              value={person.name} 
-                              onChange={(e) => { const newContacts = [...dealContacts]; newContacts[idx].name = e.target.value; setDealContacts(newContacts); }} 
-                              className="font-bold text-sm bg-transparent border-none outline-none focus:ring-1 focus:ring-[#ff6b00]/30 rounded px-1 -ml-1 text-gray-900 dark:text-white placeholder-gray-400" 
-                              placeholder="Nome do Decisor" 
-                            />
-                            <input 
-                              type="text" 
-                              value={person.role} 
-                              onChange={(e) => { const newContacts = [...dealContacts]; newContacts[idx].role = e.target.value; setDealContacts(newContacts); }} 
-                              className="text-[10px] font-black uppercase tracking-wider bg-transparent border-none outline-none focus:ring-1 focus:ring-[#ff6b00]/30 rounded px-1 -ml-1 text-[#ff6b00] placeholder-gray-400" 
-                              placeholder="Cargo (Ex: Diretor Financeiro)" 
-                            />
-                          </div>
-                          <button type="button" onClick={() => setDealContacts(prev => prev.filter(p => p.id !== person.id))} className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                const handleUpdateClientDecisor = async (decisorId: string, updates: Partial<{ name: string; role: string; contacts: { type: string; value: string }[] }>) => {
+                  if (!currentClient) return;
+                  const updatedDecisores = clientDecisores.map(d => {
+                    if (d.id === decisorId) {
+                      return { ...d, ...updates };
+                    }
+                    return d;
+                  });
+                  try {
+                    await updateClient(currentClient.id, { decisores: updatedDecisores });
+                  } catch (error) {
+                    console.error('Error updating client decisor:', error);
+                  }
+                };
 
-                        {/* LISTA DE CONTATOS (CHIPS) */}
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {person.contacts.map((c: any, cIdx: number) => (
-                            <div key={cIdx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-300">
-                              {getContactIcon(c.type)}
-                              <span className="truncate max-w-[120px]">{c.value}</span>
-                              <button type="button" onClick={() => { const newContacts = [...dealContacts]; newContacts[idx].contacts = newContacts[idx].contacts.filter((_: any, i: number) => i !== cIdx); setDealContacts(newContacts); }} className="hover:text-red-500 ml-0.5 text-gray-400">
-                                <X size={10} strokeWidth={3} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* ADICIONAR NOVO CONTATO AO DECISOR */}
-                        <div className="flex gap-2 mt-1">
-                          <input 
-                            type="text" 
-                            id={`contact-input-${person.id}`} 
-                            placeholder="E-mail, whatsapp, insta..." 
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                const val = e.currentTarget.value.trim();
-                                if (val) {
-                                  const newContacts = [...dealContacts];
-                                  newContacts[idx].contacts.push({ type: detectContactType(val), value: val });
-                                  setDealContacts(newContacts);
-                                  e.currentTarget.value = '';
-                                }
-                              }
-                            }} 
-                            className="flex-1 bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-lg px-2 py-1.5 text-[10px] font-medium outline-none focus:border-[#ff6b00] text-gray-800 dark:text-gray-200" 
-                          />
-                          <button type="button" onClick={() => {
-                            const input = document.getElementById(`contact-input-${person.id}`) as HTMLInputElement;
-                            const val = input.value.trim();
-                            if (val) {
-                              const newContacts = [...dealContacts];
-                              newContacts[idx].contacts.push({ type: detectContactType(val), value: val });
-                              setDealContacts(newContacts);
-                              input.value = '';
-                            }
-                          }} className="bg-gray-200 dark:bg-gray-700 hover:bg-[#ff6b00] hover:text-white text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors">
-                            Add
-                          </button>
-                        </div>
+                return (
+                  <div className="w-full md:w-96 bg-gray-50 dark:bg-[#1C1C1E]/50 p-6 overflow-y-auto space-y-5 flex flex-col justify-between border-l border-gray-100 dark:border-gray-800">
+                    <div className="space-y-5">
+                      <div>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-4">Vínculo Comercial</h3>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Empresa Vinculada *</label>
+                        <select required value={dealClientId} onChange={(e) => setDealClientId(e.target.value)} className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]">
+                          <option value="">Selecione um cliente...</option>
+                          {clientes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
                       </div>
-                    ))}
-                  </div>
 
-                  {/* BOTÃO CRIAR NOVO DECISOR */}
-                  <button type="button" onClick={() => setDealContacts(prev => [...prev, { id: uuidv4(), name: '', role: '', contacts: [] }])} className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-500 hover:text-[#ff6b00] hover:border-[#ff6b00] hover:bg-[#ff6b00]/5 transition-all">
-                    <UserPlus size={14} /> Adicionar Decisor
-                  </button>
-                </div>
-              </div>
+                      {dealClientId && currentClient && (
+                        <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                          <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-3">Decisores desta Negociação</h3>
+                          
+                          {/* VINCULAR DECISOR EXISTENTE (Dropdown Notion-style) */}
+                          {unlinkedDecisores.length > 0 && (
+                            <div className="mb-4 animate-fadeIn">
+                              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Vincular Decisor Existente</label>
+                              <select 
+                                value=""
+                                onChange={(e) => {
+                                  const selectedId = e.target.value;
+                                  if (selectedId && !linkedDecisores.includes(selectedId)) {
+                                    setLinkedDecisores(prev => [...prev, selectedId]);
+                                  }
+                                }}
+                                className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-2.5 px-3.5 text-xs font-semibold focus:ring-2 focus:ring-[#ff6b00]"
+                              >
+                                <option value="">Selecione um decisor cadastrado...</option>
+                                {unlinkedDecisores.map(d => (
+                                  <option key={d.id} value={d.id}>{d.name} ({d.role || 'Sem Cargo'})</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* LISTA DOS DECISORES VINCULADOS COM EDIÇÃO INLINE */}
+                          <div className="flex flex-col gap-3 mb-4">
+                            {linkedDecisoresObjects.length === 0 ? (
+                              <div className="text-center p-6 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl text-gray-400">
+                                <span className="text-xs">Nenhum decisor vinculado a esta negociação.</span>
+                              </div>
+                            ) : (
+                              linkedDecisoresObjects.map((person) => (
+                                <div key={person.id} className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex flex-col gap-2 shadow-sm transition-all focus-within:border-[#ff6b00]/50">
+                                  
+                                  {/* NOME E CARGO EDITÁVEIS INLINE */}
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex flex-col flex-1 gap-1">
+                                      <input 
+                                        type="text" 
+                                        defaultValue={person.name} 
+                                        onBlur={(e) => { if (e.target.value.trim() && e.target.value !== person.name) handleUpdateClientDecisor(person.id, { name: e.target.value.trim() }); }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                        className="font-bold text-sm bg-transparent border-none outline-none focus:ring-1 focus:ring-[#ff6b00]/30 rounded px-1 -ml-1 text-gray-900 dark:text-white placeholder-gray-400" 
+                                        placeholder="Nome do Decisor" 
+                                      />
+                                      <input 
+                                        type="text" 
+                                        defaultValue={person.role} 
+                                        onBlur={(e) => { if (e.target.value.trim() && e.target.value !== person.role) handleUpdateClientDecisor(person.id, { role: e.target.value.trim() }); }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                        className="text-[10px] font-black uppercase tracking-wider bg-transparent border-none outline-none focus:ring-1 focus:ring-[#ff6b00]/30 rounded px-1 -ml-1 text-[#ff6b00] placeholder-gray-400" 
+                                        placeholder="Cargo (Ex: Diretor Financeiro)" 
+                                      />
+                                    </div>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => setLinkedDecisores(prev => prev.filter(id => id !== person.id))} 
+                                      className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                      title="Remover Vínculo desta Oportunidade"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+
+                                  {/* LISTA DE CONTATOS DO DECISOR */}
+                                  <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {person.contacts.map((c: any, cIdx: number) => (
+                                      <div key={cIdx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-300">
+                                        {getContactIcon(c.type)}
+                                        <span className="truncate max-w-[120px]">{c.value}</span>
+                                        <button 
+                                          type="button" 
+                                          onClick={() => {
+                                            const newContacts = person.contacts.filter((_, idx) => idx !== cIdx);
+                                            handleUpdateClientDecisor(person.id, { contacts: newContacts });
+                                          }} 
+                                          className="hover:text-red-500 ml-0.5 text-gray-400"
+                                        >
+                                          <X size={10} strokeWidth={3} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {/* ADICIONAR NOVO CANAL DE CONTATO */}
+                                  <div className="flex gap-2 mt-1">
+                                    <input 
+                                      type="text" 
+                                      id={`contact-input-${person.id}`} 
+                                      placeholder="E-mail, WhatsApp, Insta..." 
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          const val = e.currentTarget.value.trim();
+                                          if (val) {
+                                            const newContacts = [...person.contacts, { type: detectContactType(val), value: val }];
+                                            handleUpdateClientDecisor(person.id, { contacts: newContacts });
+                                            e.currentTarget.value = '';
+                                          }
+                                        }
+                                      }} 
+                                      className="flex-1 bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-lg px-2 py-1.5 text-[10px] font-medium outline-none focus:border-[#ff6b00] text-gray-800 dark:text-gray-200" 
+                                    />
+                                    <button 
+                                      type="button" 
+                                      onClick={() => {
+                                        const input = document.getElementById(`contact-input-${person.id}`) as HTMLInputElement;
+                                        const val = input.value.trim();
+                                        if (val) {
+                                          const newContacts = [...person.contacts, { type: detectContactType(val), value: val }];
+                                          handleUpdateClientDecisor(person.id, { contacts: newContacts });
+                                          input.value = '';
+                                        }
+                                      }} 
+                                      className="bg-gray-200 dark:bg-gray-700 hover:bg-[#ff6b00] hover:text-white text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* QUICK FORM: CRIAR NOVO DECISOR DIRETAMENTE NO CLIENTE */}
+                          {isAddingNewDecisor ? (
+                            <div className="bg-gray-100 dark:bg-[#2C2C2E]/40 border border-gray-200 dark:border-gray-800 p-4 rounded-xl space-y-3 animate-fadeIn">
+                              <h4 className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Novo Decisor para {currentClient.name}</h4>
+                              <div className="space-y-2.5">
+                                <div>
+                                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Nome *</label>
+                                  <input 
+                                    type="text"
+                                    value={newDecisorName}
+                                    onChange={(e) => setNewDecisorName(e.target.value)}
+                                    placeholder="Nome completo"
+                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#ff6b00]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Cargo *</label>
+                                  <input 
+                                    type="text"
+                                    value={newDecisorRole}
+                                    onChange={(e) => setNewDecisorRole(e.target.value)}
+                                    placeholder="Ex: CEO, Gerente..."
+                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#ff6b00]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Contato (E-mail, Whats, etc.)</label>
+                                  <input 
+                                    type="text"
+                                    value={newDecisorContact}
+                                    onChange={(e) => setNewDecisorContact(e.target.value)}
+                                    placeholder="Ex: cel@whats.com ou @insta"
+                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#ff6b00]"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="flex gap-2 pt-1.5">
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    setNewDecisorName('');
+                                    setNewDecisorRole('');
+                                    setNewDecisorContact('');
+                                    setIsAddingNewDecisor(false);
+                                  }} 
+                                  className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-colors"
+                                >
+                                  Cancelar
+                                </button>
+                                <button 
+                                  type="button" 
+                                  onClick={async () => {
+                                    if (!newDecisorName.trim() || !newDecisorRole.trim()) {
+                                      alert('Preencha Nome e Cargo do novo decisor.');
+                                      return;
+                                    }
+                                    const decisorId = uuidv4();
+                                    const newDecisorObj = {
+                                      id: decisorId,
+                                      name: newDecisorName.trim(),
+                                      role: newDecisorRole.trim(),
+                                      contacts: newDecisorContact.trim() ? [{ type: detectContactType(newDecisorContact), value: newDecisorContact.trim() }] : []
+                                    };
+                                    const updatedDecisores = [...clientDecisores, newDecisorObj];
+                                    try {
+                                      await updateClient(currentClient.id, { decisores: updatedDecisores });
+                                      setLinkedDecisores(prev => {
+                                        if (prev.includes(decisorId)) return prev;
+                                        return [...prev, decisorId];
+                                      });
+                                      setNewDecisorName('');
+                                      setNewDecisorRole('');
+                                      setNewDecisorContact('');
+                                      setIsAddingNewDecisor(false);
+                                    } catch (error) {
+                                      console.error('Error creating decisor:', error);
+                                      alert('Erro ao criar decisor.');
+                                    }
+                                  }} 
+                                  className="flex-1 py-1.5 bg-[#ff6b00] hover:bg-[#e05e00] text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                >
+                                  Criar e Vincular
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button 
+                              type="button" 
+                              onClick={() => setIsAddingNewDecisor(true)} 
+                              className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-500 hover:text-[#ff6b00] hover:border-[#ff6b00] hover:bg-[#ff6b00]/5 transition-all"
+                            >
+                              <UserPlus size={14} /> Novo Decisor
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="px-6 py-4 bg-gray-50/50 dark:bg-[#252529]/30 border-t border-gray-100 dark:border-gray-800 flex gap-3 shrink-0">

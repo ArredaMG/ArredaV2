@@ -8,6 +8,7 @@ export interface Client {
   contactRole?: string | null;
   leadSource?: string | null;
   contacts?: { type: string; value: string }[] | null;
+  decisores?: { id: string; name: string; role: string; contacts: { type: string; value: string }[] }[] | null;
   createdAt?: string | Date | null;
   updatedAt?: string | Date | null;
 }
@@ -125,7 +126,7 @@ export interface Deal {
   nextActionDate?: string | Date | null;
   lossReason?: string | null;
   notes?: string | null;
-  dealContacts?: { id: string; name: string; role: string; contacts: { type: string; value: string }[] }[] | null;
+  linkedDecisores?: string[] | null;
   createdAt?: string | Date;
   updatedAt?: string | Date;
   client?: Client;

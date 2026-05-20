@@ -551,7 +551,8 @@ export const addClient = async (client: any) => {
         contactName: client.contactName,
         contactRole: client.contactRole,
         leadSource: client.leadSource,
-        contacts: client.contacts || []
+        contacts: client.contacts || [],
+        decisores: client.decisores || []
     });
 };
 
@@ -616,7 +617,7 @@ export const createDeal = async (deal: {
   nextActionDate?: Date | null;
   lossReason?: string | null;
   notes?: string | null;
-  dealContacts?: { id: string; name: string; role: string; contacts: { type: string; value: string }[] }[] | null;
+  linkedDecisores?: string[] | null;
 }) => {
   await db.insert(schema.deals).values({
     id: deal.id,
@@ -630,7 +631,7 @@ export const createDeal = async (deal: {
     nextActionDate: deal.nextActionDate,
     lossReason: deal.lossReason ?? null,
     notes: deal.notes ?? null,
-    dealContacts: deal.dealContacts ?? [],
+    linkedDecisores: deal.linkedDecisores ?? [],
   });
 };
 
@@ -648,7 +649,7 @@ export const updateDeal = async (dealId: string, updates: Partial<Deal>) => {
   }
   if ('lossReason' in updates) dbUpdates.lossReason = updates.lossReason ?? null;
   if ('notes' in updates) dbUpdates.notes = updates.notes ?? null;
-  if ('dealContacts' in updates) dbUpdates.dealContacts = updates.dealContacts ?? [];
+  if ('linkedDecisores' in updates) dbUpdates.linkedDecisores = updates.linkedDecisores ?? [];
   dbUpdates.updatedAt = new Date();
   await db.update(schema.deals).set(dbUpdates).where(eq(schema.deals.id, dealId));
 };
