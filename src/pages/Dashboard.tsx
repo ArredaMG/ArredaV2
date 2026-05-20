@@ -115,7 +115,7 @@ export const Dashboard: React.FC = () => {
       >
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
-            <h3 className="font-black text-gray-900 dark:text-gray-100 group-hover:text-[#AE0000] transition-colors line-clamp-1 text-sm">{summary.title}</h3>
+            <h3 className="font-black text-gray-900 dark:text-gray-100 group-hover:text-[#ff6b00] transition-colors line-clamp-1 text-sm">{summary.title}</h3>
             <span className="text-xs font-bold text-zinc-500 mt-0.5 tracking-tight">{summary.client}</span>
           </div>
           <span className={cn(
@@ -129,7 +129,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {summary.dates.length > 0 && (
-          <div className="text-[10px] font-bold text-[#AE0000] bg-[#AE0000]/10 border border-[#AE0000]/20 px-2 py-1 rounded-md self-start">
+          <div className="text-[10px] font-bold text-[#ff6b00] bg-[#ff6b00]/10 border border-[#ff6b00]/20 px-2 py-1 rounded-md self-start">
             {summary.dates.length} {summary.dates.length === 1 ? 'diária agendada' : 'diárias agendadas'}
           </div>
         )}
@@ -145,7 +145,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-700 mt-1">
             <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Total</span>
-            <span className="text-[#AE0000] dark:text-[#ff8c00] font-mono font-black text-lg tabular-nums leading-none">{formatCurrency(summary.total)}</span>
+            <span className="text-[#ff6b00] dark:text-[#ff8c00] font-mono font-black text-lg tabular-nums leading-none">{formatCurrency(summary.total)}</span>
           </div>
         </div>
 
@@ -196,7 +196,7 @@ export const Dashboard: React.FC = () => {
                 className={cn(
                   "p-2.5 rounded-lg transition-all duration-200", 
                   viewMode === 'list' 
-                    ? "bg-white dark:bg-zinc-700 shadow-md text-[#AE0000]" 
+                    ? "bg-white dark:bg-zinc-700 shadow-md text-[#ff6b00]" 
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300"
                 )}
                 onClick={() => setViewMode('list')}
@@ -208,7 +208,7 @@ export const Dashboard: React.FC = () => {
                 className={cn(
                   "p-2.5 rounded-lg transition-all duration-200", 
                   viewMode === 'kanban' 
-                    ? "bg-white dark:bg-zinc-700 shadow-md text-[#AE0000]" 
+                    ? "bg-white dark:bg-zinc-700 shadow-md text-[#ff6b00]" 
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300"
                 )}
                 onClick={() => setViewMode('kanban')}
@@ -228,7 +228,7 @@ export const Dashboard: React.FC = () => {
             
             <button 
               onClick={handleCreateNew}
-              className="flex items-center gap-2 bg-[#AE0000] hover:bg-[#ff8c00] text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+              className="flex items-center gap-2 bg-[#ff6b00] hover:bg-[#ff8c00] text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95"
             >
               <Plus size={20} strokeWidth={3} />
               <span>Novo Orçamento</span>
@@ -255,7 +255,7 @@ export const Dashboard: React.FC = () => {
                 className={cn(
                   "relative group p-6 rounded-2xl border transition-all duration-300 text-left overflow-hidden",
                   filterStatus === card.status 
-                    ? "border-[#AE0000] ring-1 ring-[#AE0000] bg-white dark:bg-[#1C1C1E] shadow-xl translate-y-[-4px]" 
+                    ? "border-[#ff6b00] ring-1 ring-[#ff6b00] bg-white dark:bg-[#1C1C1E] shadow-xl translate-y-[-4px]" 
                     : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#1C1C1E] hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm hover:shadow-md"
                 )}
               >
@@ -266,7 +266,7 @@ export const Dashboard: React.FC = () => {
                 <p className={cn("text-3xl font-bold tabular-nums", card.color)}>{formatCurrency(totals[card.status as keyof typeof totals])}</p>
                 
                 {filterStatus === card.status && (
-                  <div className="absolute bottom-0 left-0 h-1 bg-[#AE0000] w-full" />
+                  <div className="absolute bottom-0 left-0 h-1 bg-[#ff6b00] w-full" />
                 )}
               </button>
             ))}
@@ -309,7 +309,7 @@ export const Dashboard: React.FC = () => {
                         >
                           <td className="px-6 py-5">
                             <div className="flex flex-col">
-                              <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#AE0000] transition-colors">{p.title}</span>
+                              <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#ff6b00] transition-colors">{p.title}</span>
                               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter mt-0.5">{latestVersion.name}</span>
                             </div>
                           </td>
@@ -344,7 +344,7 @@ export const Dashboard: React.FC = () => {
                             <div className="flex flex-col items-center gap-2">
                               <span className="text-4xl grayscale opacity-50 mb-2">📂</span>
                               <p className="text-zinc-500 font-medium">Nenhum projeto encontrado nesta categoria.</p>
-                              <button onClick={handleCreateNew} className="text-[#AE0000] font-bold text-sm hover:underline">Criar novo orçamento</button>
+                              <button onClick={handleCreateNew} className="text-[#ff6b00] font-bold text-sm hover:underline">Criar novo orçamento</button>
                             </div>
                           </td>
                         </tr>

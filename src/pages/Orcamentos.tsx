@@ -255,7 +255,7 @@ export const Orcamentos: React.FC = () => {
                   />
                   <button 
                     onClick={handleCreateNew}
-                    className="flex items-center gap-2 bg-[#AE0000] hover:bg-[#ff8c00] text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 whitespace-nowrap animate-fadeIn"
+                    className="flex items-center gap-2 bg-[#ff6b00] hover:bg-[#ff8c00] text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 whitespace-nowrap animate-fadeIn"
                   >
                     <Plus size={20} strokeWidth={3} />
                     <span>Novo Projeto</span>
@@ -274,7 +274,7 @@ export const Orcamentos: React.FC = () => {
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 whitespace-nowrap",
                   activeTab === tab.id 
-                    ? "bg-white dark:bg-zinc-700 text-[#AE0000] shadow-md" 
+                    ? "bg-white dark:bg-zinc-700 text-[#ff6b00] shadow-md" 
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300"
                 )}
               >
@@ -319,7 +319,7 @@ export const Orcamentos: React.FC = () => {
                                 <FileText size={20} />
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#AE0000] transition-colors">{p.title}</span>
+                                <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#ff6b00] transition-colors">{p.title}</span>
                                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter mt-0.5">{latestVersion.name}</span>
                               </div>
                             </div>
@@ -355,7 +355,7 @@ export const Orcamentos: React.FC = () => {
                             <span className="text-4xl grayscale opacity-50 mb-2">📂</span>
                             <p className="text-zinc-500 font-medium">Nenhum orçamento encontrado.</p>
                             {searchQuery && (
-                              <button onClick={() => setSearchQuery('')} className="text-[#AE0000] font-bold text-sm hover:underline">Limpar busca</button>
+                              <button onClick={() => setSearchQuery('')} className="text-[#ff6b00] font-bold text-sm hover:underline">Limpar busca</button>
                             )}
                           </div>
                         </td>
@@ -396,7 +396,7 @@ export const Orcamentos: React.FC = () => {
                         <input type="number" placeholder="0.00" value={newProfData.dailyRate || ''} onChange={e => setNewProfData({...newProfData, dailyRate: Number(e.target.value)})} className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 outline-none focus:border-orange-500 text-right font-mono font-bold" />
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <button onClick={() => handleSaveProf('new')} className="p-2.5 bg-[#AE0000] text-white hover:bg-[#ff8c00] transition-all rounded-xl shadow-lg shadow-orange-500/20 active:scale-95"><Plus size={18} strokeWidth={3} /></button>
+                        <button onClick={() => handleSaveProf('new')} className="p-2.5 bg-[#ff6b00] text-white hover:bg-[#ff8c00] transition-all rounded-xl shadow-lg shadow-orange-500/20 active:scale-95"><Plus size={18} strokeWidth={3} /></button>
                       </td>
                     </tr>
                     
@@ -469,7 +469,7 @@ export const Orcamentos: React.FC = () => {
                         <input type="number" placeholder="0.00" value={newEquipData.rentalValue || ''} onChange={e => setNewEquipData({...newEquipData, rentalValue: Number(e.target.value)})} className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 outline-none focus:border-orange-500 text-right font-mono font-bold" />
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <button onClick={() => handleSaveEquip('new')} className="p-2.5 bg-[#AE0000] text-white hover:bg-[#ff8c00] transition-all rounded-xl shadow-lg shadow-orange-500/20 active:scale-95"><Plus size={18} strokeWidth={3} /></button>
+                        <button onClick={() => handleSaveEquip('new')} className="p-2.5 bg-[#ff6b00] text-white hover:bg-[#ff8c00] transition-all rounded-xl shadow-lg shadow-orange-500/20 active:scale-95"><Plus size={18} strokeWidth={3} /></button>
                       </td>
                     </tr>
                     

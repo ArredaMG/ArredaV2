@@ -69,7 +69,7 @@ export const Calendario: React.FC = () => {
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-6">
             <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
-              <CalendarDays className="w-8 h-8 text-[#AE0000]" />
+              <CalendarDays className="w-8 h-8 text-[#ff6b00]" />
               Calendário
             </h1>
             
@@ -155,13 +155,13 @@ export const Calendario: React.FC = () => {
                   key={dateStr} 
                   className={`
                     p-2 flex flex-col gap-1 transition-colors group relative
-                    ${isToday ? 'bg-[#AE0000]/5 dark:bg-[#AE0000]/10' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/30'}
+                    ${isToday ? 'bg-[#ff6b00]/5 dark:bg-[#ff6b00]/10' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/30'}
                     ${(index + 1) % 7 !== 0 ? 'border-r border-zinc-200 dark:border-zinc-800' : ''} 
                     ${index >= days.length - 7 ? '' : 'border-b border-zinc-200 dark:border-zinc-800'}
                   `}
                 >
                   <div className="flex justify-between items-center mb-1">
-                    <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-[#AE0000] text-white' : 'text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300'}`}>
+                    <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-[#ff6b00] text-white' : 'text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300'}`}>
                       {date.getDate()}
                     </span>
                   </div>
@@ -171,7 +171,7 @@ export const Calendario: React.FC = () => {
                       let colorClass = '';
                       if (p.status === 'Aprovado') colorClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60';
                       else if (p.status === 'Concluído') colorClass = 'bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700';
-                      else colorClass = 'bg-[#AE0000] text-white hover:bg-[#8F0000]';
+                      else colorClass = 'bg-[#ff6b00] text-white hover:bg-[#e66000]';
 
                       return (
                         <button

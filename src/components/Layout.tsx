@@ -20,7 +20,7 @@ export const Layout: React.FC = () => {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1C1C1E] print:hidden">
         <div className="p-6 flex items-center justify-between">
-          <div className="text-[#AE0000] dark:text-[#C51A1A]">
+          <div className="text-[#AE0000] dark:text-[#AE0000]">
             <svg 
               id="Layer_2" 
               data-name="Layer 2" 
@@ -54,7 +54,7 @@ export const Layout: React.FC = () => {
               className={({ isActive }) => cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium",
                 isActive 
-                  ? "bg-[#AE0000]/10 text-[#AE0000] dark:bg-[#C51A1A]/10 dark:text-[#C51A1A]" 
+                  ? "bg-[#AE0000]/10 text-[#AE0000] dark:bg-[#AE0000]/10 dark:text-[#AE0000]" 
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
               )}
             >
@@ -85,7 +85,7 @@ export const Layout: React.FC = () => {
               className={({ isActive }) => cn(
                 "flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[72px]",
                 isActive 
-                  ? "text-[#AE0000] dark:text-[#C51A1A]" 
+                  ? "text-[#AE0000] dark:text-[#AE0000]" 
                   : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
               )}
             >

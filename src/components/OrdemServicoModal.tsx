@@ -148,7 +148,7 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
           <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Tabela de Escopo</h3>
           
           <label className="flex items-center gap-2 text-xs font-medium text-zinc-400 cursor-pointer w-max mb-2">
-            <input type="checkbox" checked={showSubtotals} onChange={e => setShowSubtotals(e.target.checked)} className="accent-[#AE0000]" />
+            <input type="checkbox" checked={showSubtotals} onChange={e => setShowSubtotals(e.target.checked)} className="accent-[#ff6b00]" />
             Mostrar colunas de "Valor Unitário" e "Subtotal"
           </label>
 
@@ -165,11 +165,11 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
                 <div className="grid grid-cols-4 gap-2">
                   <div className="col-span-1">
                     <label className="text-[10px] font-bold text-zinc-600 block mb-1">Qtd.</label>
-                    <input type="number" value={line.qty} onChange={e => updateLine(line.id, { qty: Number(e.target.value) })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:border-[#AE0000] outline-none" />
+                    <input type="number" value={line.qty} onChange={e => updateLine(line.id, { qty: Number(e.target.value) })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:border-[#ff6b00] outline-none" />
                   </div>
                   <div className="col-span-3">
                     <label className="text-[10px] font-bold text-zinc-600 block mb-1">Produto/Serviço</label>
-                    <input type="text" value={line.name} onChange={e => updateLine(line.id, { name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:border-[#AE0000] outline-none" />
+                    <input type="text" value={line.name} onChange={e => updateLine(line.id, { name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:border-[#ff6b00] outline-none" />
                   </div>
                 </div>
 
@@ -178,21 +178,21 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
                   <textarea 
                     value={line.description} 
                     onChange={e => updateLine(line.id, { description: e.target.value })} 
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:border-[#AE0000] outline-none resize-y min-h-[60px]"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:border-[#ff6b00] outline-none resize-y min-h-[60px]"
                     placeholder="Descreva o escopo deste item..."
                   />
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-zinc-600 block mb-1">Valor Unitário</label>
-                  <input type="number" value={line.unitCost} onChange={e => updateLine(line.id, { unitCost: Number(e.target.value) })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:border-[#AE0000] outline-none font-mono" />
+                  <input type="number" value={line.unitCost} onChange={e => updateLine(line.id, { unitCost: Number(e.target.value) })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:border-[#ff6b00] outline-none font-mono" />
                 </div>
               </div>
             ))}
             
             <button 
               onClick={addLine}
-              className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-zinc-800 rounded-xl text-xs font-bold text-zinc-500 hover:text-[#AE0000] hover:border-[#AE0000] transition-colors"
+              className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-zinc-800 rounded-xl text-xs font-bold text-zinc-500 hover:text-[#ff6b00] hover:border-[#ff6b00] transition-colors"
             >
               <Plus size={14} /> Adicionar Linha de Escopo
             </button>
@@ -212,7 +212,7 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
           <div className="flex items-center gap-3">
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-[#AE0000] hover:bg-[#8F0000] text-white px-5 py-2.5 rounded-xl font-black uppercase tracking-wider text-xs shadow-md shadow-[#AE0000]/20 transition-all"
+              className="flex items-center gap-2 bg-[#ff6b00] hover:bg-[#e66000] text-white px-5 py-2.5 rounded-xl font-black uppercase tracking-wider text-xs shadow-md shadow-[#ff6b00]/20 transition-all"
             >
               <Printer size={16} /> Exportar PDF
             </button>
@@ -256,7 +256,7 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
               )}
               
               <div className="text-lg font-black uppercase tracking-tight mb-2">
-                Orçamento <span className="text-[#AE0000]">#{new Date(project.createdAt || new Date()).getFullYear()}-{project.projectNumber || '0000'}</span>
+                Orçamento <span className="text-[#ff6b00]">#{new Date(project.createdAt || new Date()).getFullYear()}-{project.projectNumber || '0000'}</span>
               </div>
               
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-zinc-600 font-medium">
@@ -285,7 +285,7 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
           {/* IDENTIFICAÇÃO DO PROJETO */}
           <div className="mb-8 print:break-inside-avoid">
             <div className="mb-4">
-              <label className="block text-xs font-black uppercase tracking-widest text-[#AE0000] mb-1">PROJETO:</label>
+              <label className="block text-xs font-black uppercase tracking-widest text-[#ff6b00] mb-1">PROJETO:</label>
               <textarea 
                 value={projetoText}
                 onChange={(e) => { setProjetoText(e.target.value); handleAutoResize(e); }}
@@ -295,7 +295,7 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
               />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-[#AE0000] mb-1">ETAPAS DO PROJETO:</label>
+              <label className="block text-xs font-black uppercase tracking-widest text-[#ff6b00] mb-1">ETAPAS DO PROJETO:</label>
               <textarea 
                 value={etapasText}
                 onChange={(e) => { setEtapasText(e.target.value); handleAutoResize(e); }}
@@ -373,7 +373,7 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
                 </div>
                 <div className="flex justify-between items-center pt-1">
                   <span className="text-xs font-black uppercase tracking-widest text-zinc-900">Total</span>
-                  <span className="text-lg font-mono font-black text-[#AE0000]">{formatCurrency(calculatedTotal)}</span>
+                  <span className="text-lg font-mono font-black text-[#ff6b00]">{formatCurrency(calculatedTotal)}</span>
                 </div>
               </div>
             </div>
@@ -381,7 +381,7 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
             {/* Forma de Pagamento e Observações */}
             <div className="grid grid-cols-2 gap-8 text-sm">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[#AE0000] mb-2">FORMA DE PAGAMENTO:</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#ff6b00] mb-2">FORMA DE PAGAMENTO:</label>
                 <textarea 
                   value={formaPagamento}
                   onChange={(e) => { setFormaPagamento(e.target.value); handleAutoResize(e); }}
@@ -390,7 +390,7 @@ export function OrdemServicoModal({ project, activeVersion, totalClient, clientN
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[#AE0000] mb-2">OBSERVAÇÕES:</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#ff6b00] mb-2">OBSERVAÇÕES:</label>
                 <textarea 
                   value={observacoes}
                   onChange={(e) => { setObservacoes(e.target.value); handleAutoResize(e); }}
