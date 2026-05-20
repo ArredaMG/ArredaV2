@@ -26,9 +26,9 @@ export const CreateProjectModal: React.FC<Props> = ({ isOpen, onClose, templates
         <div className="space-y-4">
           <button 
             onClick={onCreateBlank}
-            className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#ff6b00] dark:hover:border-[#ff6b00] rounded-xl hover:bg-[#ff6b00]/5 dark:hover:bg-[#ff6b00]/10 transition-all group"
+            className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#AE0000] dark:hover:border-[#AE0000] rounded-xl hover:bg-[#AE0000]/5 dark:hover:bg-[#AE0000]/10 transition-all group"
           >
-            <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#ff6b00]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#ff6b00] transition-colors">
+            <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#AE0000]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#AE0000] transition-colors">
               <FilePlus size={24} />
             </div>
             <div>
@@ -45,9 +45,9 @@ export const CreateProjectModal: React.FC<Props> = ({ isOpen, onClose, templates
                   <button
                     key={t.id}
                     onClick={() => onCreateFromTemplate(t)}
-                    className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#ff6b00] dark:hover:border-[#ff6b00] rounded-xl hover:bg-[#ff6b00]/5 dark:hover:bg-[#ff6b00]/10 transition-all group"
+                    className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#AE0000] dark:hover:border-[#AE0000] rounded-xl hover:bg-[#AE0000]/5 dark:hover:bg-[#AE0000]/10 transition-all group"
                   >
-                    <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#ff6b00]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#ff6b00] transition-colors">
+                    <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#AE0000]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#AE0000] transition-colors">
                       <Copy size={24} />
                     </div>
                     <div>

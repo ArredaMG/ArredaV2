@@ -8,11 +8,11 @@
   --text-color: #1D1D1F;
   --text-muted: #86868B;
   --border-color: #E5E5EA;
-  --primary: #FF5A00;
-  --primary-hover: #E65100;
+  --primary: #AE0000;
+  --primary-hover: #8F0000;
   --input-bg: #F9F9F9;
   --zebra-bg: #F9F9F9;
-  --hover-bg: rgba(255, 90, 0, 0.05);
+  --hover-bg: rgba(174, 0, 0, 0.05);
 }
 
 /* 2. TEMA ESCURO AUTOMÁTICO */
@@ -24,11 +24,11 @@
     --text-color: #F5F5F7;
     --text-muted: #A1A1A6; 
     --border-color: #38383A;
-    --primary: #FF5A00;
-    --primary-hover: #FF7B33;
+    --primary: #AE0000;
+    --primary-hover: #C51A1A;
     --input-bg: #2C2C2E;
     --zebra-bg: #242426;
-    --hover-bg: rgba(255, 90, 0, 0.15);
+    --hover-bg: rgba(174, 0, 0, 0.15);
   }
 }
 
@@ -99,8 +99,23 @@ dialog::backdrop {
 }
 
 @theme {
+  --color-primary: #AE0000;
+  --color-primary-hover: #8F0000;
   --color-brand-500: var(--primary);
   --color-brand-600: var(--primary-hover);
+  
+  /* Mapeando o sotaque orange do Tailwind para tons de Turkey Red */
+  --color-orange-50: #FFF5F5;
+  --color-orange-100: #FFE3E3;
+  --color-orange-200: #FFC9C9;
+  --color-orange-300: #FFA8A8;
+  --color-orange-400: #FF8787;
+  --color-orange-500: #AE0000;
+  --color-orange-600: #8F0000;
+  --color-orange-700: #700000;
+  --color-orange-800: #520000;
+  --color-orange-900: #3D0000;
+  --color-orange-950: #1C0000;
 }
 
 @media print {
