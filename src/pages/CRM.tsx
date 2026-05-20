@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import * as dbService from '../services/db-services';
 import { Pipeline, Stage, Deal, Client } from '../types';
 import { calculateFinancials } from '../lib/project-utils';
+import { cn } from '../lib/utils';
 
 
 export const CRM: React.FC = () => {
@@ -583,6 +584,16 @@ export const CRM: React.FC = () => {
   const totalWonValue = wonDeals.reduce((sum, d) => sum + getDealValue(d), 0);
   const totalCardsCount = dealsList.length;
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const radarDeals = openDeals.filter(d => {
+    if (!d.nextActionDate) return false;
+    const actionDate = new Date(d.nextActionDate);
+    actionDate.setHours(0, 0, 0, 0);
+    return actionDate <= today;
+  }).sort((a, b) => new Date(a.nextActionDate!).getTime() - new Date(b.nextActionDate!).getTime());
+
   if (isLoading || isSeeding) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-black text-gray-500">
@@ -717,6 +728,46 @@ export const CRM: React.FC = () => {
             <Users className="h-6 w-6 text-purple-500 opacity-80" />
           </div>
         </div>
+
+        {/* Radar do Dia */}
+        {radarDeals.length > 0 && (
+          <div className="mt-6 pt-5 border-t border-gray-100 dark:border-[#3A3A3C]/50 animate-fadeIn">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white">
+                Radar do Dia <span className="ml-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full text-[10px]">{radarDeals.length}</span>
+              </h2>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+              {radarDeals.map(deal => {
+                const isOverdue = isDateOverdue(deal.nextActionDate);
+                return (
+                  <div 
+                    key={`radar-${deal.id}`}
+                    onClick={() => openEditModal(deal)}
+                    className={cn(
+                      "flex-shrink-0 w-64 p-3 rounded-xl border cursor-pointer hover:shadow-md transition-all flex flex-col gap-1.5",
+                      isOverdue 
+                        ? "bg-red-50/50 dark:bg-red-950/10 border-red-200 dark:border-red-900/30 hover:border-red-400" 
+                        : "bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900/30 hover:border-amber-400"
+                    )}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className={cn("text-[9px] font-black uppercase tracking-widest", isOverdue ? "text-red-500" : "text-amber-600")}>
+                        {isOverdue ? "Atrasado" : "Hoje"}
+                      </span>
+                      <span className="text-[10px] font-bold text-gray-500">{new Date(deal.nextActionDate!).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">{deal.title}</h4>
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 truncate">
+                      {deal.client?.name || clientes.find(c => c.id === deal.clientId)?.name || 'Sem Cliente'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Kanban Board (Scrollable Container) */}
@@ -795,9 +846,15 @@ export const CRM: React.FC = () => {
                           draggable
                           onDragStart={(e) => handleDragStart(e, deal.id)}
                           onClick={() => openEditModal(deal)}
-                          className={`group bg-gray-50 dark:bg-[#2C2C2E] border border-gray-100 dark:border-[#3A3A3C] hover:border-[#ff6b00] dark:hover:border-[#ff6b00] rounded-xl p-4 cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
-                            draggedDealId === deal.id ? 'opacity-40 scale-95' : ''
-                          }`}
+                          className={cn(
+                            "group rounded-xl p-4 cursor-grab active:cursor-grabbing transition-all hover:shadow-md border",
+                            draggedDealId === deal.id ? "opacity-40 scale-95" : "",
+                            overdue && deal.status === 'open'
+                              ? "bg-red-50/30 dark:bg-red-950/10 border-red-300 dark:border-red-800 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:border-red-500"
+                              : isToday && deal.status === 'open'
+                                ? "bg-amber-50/30 dark:bg-amber-950/10 border-amber-300 dark:border-amber-800 hover:border-amber-500"
+                                : "bg-gray-50 dark:bg-[#2C2C2E] border-gray-100 dark:border-[#3A3A3C] hover:border-[#ff6b00] dark:hover:border-[#ff6b00]"
+                          )}
                         >
                           <div className="flex items-start justify-between gap-2">
                             {/* Client Tag */}
