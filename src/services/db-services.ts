@@ -609,11 +609,15 @@ export const createDeal = async (deal: {
   clientId: string;
   pipelineId: string;
   stageId: string;
-  projectId?: string; // optional link to a project
+  projectId?: string;
   title: string;
   value: number;
   status: 'open' | 'won' | 'lost';
   nextActionDate?: Date | null;
+  lossReason?: string | null;
+  notes?: string | null;
+  dealContactName?: string | null;
+  dealContactRole?: string | null;
 }) => {
   await db.insert(schema.deals).values({
     id: deal.id,
@@ -625,6 +629,10 @@ export const createDeal = async (deal: {
     value: deal.value,
     status: deal.status,
     nextActionDate: deal.nextActionDate,
+    lossReason: deal.lossReason ?? null,
+    notes: deal.notes ?? null,
+    dealContactName: deal.dealContactName ?? null,
+    dealContactRole: deal.dealContactRole ?? null,
   });
 };
 
@@ -640,6 +648,10 @@ export const updateDeal = async (dealId: string, updates: Partial<Deal>) => {
   if (updates.projectId !== undefined) {
     dbUpdates.projectId = updates.projectId ? updates.projectId : null;
   }
+  if ('lossReason' in updates) dbUpdates.lossReason = updates.lossReason ?? null;
+  if ('notes' in updates) dbUpdates.notes = updates.notes ?? null;
+  if ('dealContactName' in updates) dbUpdates.dealContactName = updates.dealContactName ?? null;
+  if ('dealContactRole' in updates) dbUpdates.dealContactRole = updates.dealContactRole ?? null;
   dbUpdates.updatedAt = new Date();
   await db.update(schema.deals).set(dbUpdates).where(eq(schema.deals.id, dealId));
 };

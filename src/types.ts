@@ -123,6 +123,10 @@ export interface Deal {
   value: number;
   status: 'open' | 'won' | 'lost';
   nextActionDate?: string | Date | null;
+  lossReason?: string | null;
+  notes?: string | null;
+  dealContactName?: string | null;
+  dealContactRole?: string | null;
   createdAt?: string | Date;
   updatedAt?: string | Date;
   client?: Client;

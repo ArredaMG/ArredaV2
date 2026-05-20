@@ -13,7 +13,9 @@ import {
   Users, 
   Loader2, 
   Sparkles, 
-  FolderKanban
+  FolderKanban,
+  Lock,
+  ExternalLink
 } from 'lucide-react';
 import { CreateProjectModal } from '../components/CreateProjectModal';
 import { FileText } from 'lucide-react';
@@ -59,6 +61,11 @@ export const CRM: React.FC = () => {
   const [dealToCreateProject, setDealToCreateProject] = useState<Deal | null>(null);
   const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+
+  const [dealLossReason, setDealLossReason] = useState<string>('');
+  const [dealNotes, setDealNotes] = useState<string>('');
+  const [dealContactName, setDealContactName] = useState<string>('');
+  const [dealContactRole, setDealContactRole] = useState<string>('');
 
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
@@ -282,6 +289,21 @@ export const CRM: React.FC = () => {
     return deal.value;
   };
 
+  const getContactLink = (type: string, value: string) => {
+    if (type === 'email') return `mailto:${value}`;
+    if (type === 'whatsapp') {
+      const clean = value.replace(/\D/g, '');
+      return `https://wa.me/${clean}`;
+    }
+    if (type === 'instagram') {
+      if (value.startsWith('@')) {
+        return `https://instagram.com/${value.substring(1)}`;
+      }
+      return value.startsWith('http') ? value : `https://${value}`;
+    }
+    return value.startsWith('http') ? value : `https://${value}`;
+  };
+
   // Drag and drop event handlers
   const handleDragStart = (e: React.DragEvent, dealId: string) => {
     setDraggedDealId(dealId);
@@ -363,6 +385,10 @@ export const CRM: React.FC = () => {
       projectId: dealToCreateProject?.id,
       status: 'open' as const,
       nextActionDate,
+      lossReason: dealStatus === 'lost' ? dealLossReason : null,
+      notes: dealNotes,
+      dealContactName,
+      dealContactRole,
     };
 
     // Optimistic insert state
@@ -421,6 +447,10 @@ export const CRM: React.FC = () => {
       status: dealStatus,
       nextActionDate: nextActionDateStr,
       clientId: dealClientId,
+      lossReason: dealStatus === 'lost' ? dealLossReason : null,
+      notes: dealNotes,
+      dealContactName,
+      dealContactRole,
     };
 
     // Optimistic Update
@@ -535,6 +565,10 @@ export const CRM: React.FC = () => {
     setDealClientId(deal.clientId);
     setDealValue(deal.value.toString());
     setDealStatus(deal.status);
+    setDealLossReason(deal.lossReason || '');
+    setDealNotes(deal.notes || '');
+    setDealContactName(deal.dealContactName || '');
+    setDealContactRole(deal.dealContactRole || '');
     
     if (deal.nextActionDate) {
       const date = new Date(deal.nextActionDate);
@@ -553,6 +587,10 @@ export const CRM: React.FC = () => {
     setDealValue('');
     setDealNextActionDate('');
     setDealStatus('open');
+    setDealLossReason('');
+    setDealNotes('');
+    setDealContactName('');
+    setDealContactRole('');
   };
 
   // Check if date is overdue
@@ -878,10 +916,16 @@ export const CRM: React.FC = () => {
                           <h3 className="text-sm font-bold text-gray-900 dark:text-white mt-1.5 leading-snug line-clamp-2">
                             {deal.title}
                           </h3>
+                          {deal.status === 'lost' && deal.lossReason && (
+                            <div className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-red-500/80 bg-red-500/10 px-2 py-0.5 rounded w-fit">
+                              <AlertCircle className="w-3 h-3" />
+                              <span className="truncate max-w-[180px]">{deal.lossReason}</span>
+                            </div>
+                          )}
 
                           {/* BRL Value */}
                           <div className="mt-3 flex items-center justify-between">
-                            <span className="text-base font-black text-gray-800 dark:text-gray-100 tabular-nums">
+                            <span className={cn("text-base font-black tabular-nums", deal.status === 'won' ? 'text-emerald-500' : deal.status === 'lost' ? 'text-red-500' : 'text-amber-500 dark:text-amber-400')}>
                               {getDealValue(deal) > 0 ? formatCurrency(getDealValue(deal)) : 'A definir'}
                             </span>
                             
@@ -1082,7 +1126,18 @@ export const CRM: React.FC = () => {
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
               {/* Lado Esquerdo: Negociação */}
               <div className="flex-1 p-6 overflow-y-auto space-y-5 border-r border-gray-100 dark:border-gray-800">
-                <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-4">Dados da Negociação</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Dados da Negociação</h3>
+                  {editingDeal.projectId ? (
+                    <button type="button" onClick={() => navigate('/orcamentos/' + editingDeal.projectId)} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 px-3 py-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+                      <ExternalLink size={12} /> Ver Orçamento
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => { setDealToCreateProject(editingDeal); setShowCreateProjectModal(true); setIsEditModalOpen(false); }} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest bg-[#ff6b00]/10 text-[#ff6b00] px-3 py-1.5 rounded-lg hover:bg-[#ff6b00]/20 transition-colors">
+                      <FileText size={12} /> Gerar Orçamento
+                    </button>
+                  )}
+                </div>
                 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Título da Oportunidade *</label>
@@ -1092,8 +1147,11 @@ export const CRM: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor Estimado (R$)</label>
-                    <input type="text" value={dealValue} onChange={(e) => setDealValue(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#ff6b00]" />
-                    <span className="text-[9px] text-gray-400 mt-1 block">* Sincroniza com a aba de Orçamentos</span>
+                    <div className="relative">
+                      <input type="text" value={dealValue} onChange={(e) => setDealValue(e.target.value)} disabled={!!editingDeal.projectId} className={cn("w-full border-none rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#ff6b00]", editingDeal.projectId ? "bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed" : "bg-gray-100 dark:bg-[#2C2C2E] text-gray-900 dark:text-white")} />
+                      {editingDeal.projectId && <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />}
+                    </div>
+                    {editingDeal.projectId && <span className="text-[9px] text-gray-400 mt-1 block">* Valor sincronizado com a Planilha</span>}
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Próxima Ação</label>
@@ -1101,13 +1159,43 @@ export const CRM: React.FC = () => {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Contato nesta Negociação</label>
+                    <input type="text" placeholder="Ex: Juliana" value={dealContactName} onChange={(e) => setDealContactName(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Setor / Cargo</label>
+                    <input type="text" placeholder="Ex: Marketing" value={dealContactRole} onChange={(e) => setDealContactRole(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" />
+                  </div>
+                </div>
+
                 <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Anotações da Negociação</label>
+                  <textarea rows={3} placeholder="Dores do cliente, briefing rápido..." value={dealNotes} onChange={(e) => setDealNotes(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00] resize-none"></textarea>
+                </div>
+
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Estágio Comercial</label>
                   <div className="grid grid-cols-3 gap-2">
-                    <button type="button" onClick={() => setDealStatus('open')} className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${dealStatus === 'open' ? 'bg-blue-500/10 text-blue-500 border-blue-500' : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400 hover:border-gray-400'}`}>Em Negociação</button>
+                    <button type="button" onClick={() => setDealStatus('open')} className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${dealStatus === 'open' ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400 hover:border-gray-400'}`}>Em Negociação</button>
                     <button type="button" onClick={() => setDealStatus('won')} className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${dealStatus === 'won' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500' : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400 hover:border-gray-400'}`}>Ganho</button>
                     <button type="button" onClick={() => setDealStatus('lost')} className={`py-2 px-3 text-xs font-bold rounded-xl border text-center transition-all ${dealStatus === 'lost' ? 'bg-red-500/10 text-red-500 border-red-500' : 'bg-transparent border-gray-200 dark:border-gray-800 text-gray-400 hover:border-gray-400'}`}>Perdido</button>
                   </div>
+                  {dealStatus === 'lost' && (
+                    <div className="mt-3 p-3 bg-red-50/50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-xl animate-fadeIn">
+                      <label className="block text-[10px] font-bold text-red-500 uppercase tracking-wide mb-1">Motivo da Perda *</label>
+                      <select required value={dealLossReason} onChange={(e) => setDealLossReason(e.target.value)} className="w-full bg-white dark:bg-[#1C1C1E] border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 rounded-lg py-2 px-3 text-xs font-bold outline-none focus:ring-2 focus:ring-red-500/20">
+                        <option value="">Selecione o motivo...</option>
+                        <option value="Preço alto">Preço alto</option>
+                        <option value="Perdemos para a concorrência">Perdemos para a concorrência</option>
+                        <option value="Prazo incompatível">Prazo incompatível</option>
+                        <option value="Cliente sumiu / Sem resposta">Cliente sumiu / Sem resposta</option>
+                        <option value="Projeto cancelado">Projeto cancelado</option>
+                        <option value="Outros">Outros</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1141,12 +1229,16 @@ export const CRM: React.FC = () => {
                         <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Canais de Contato</span>
                         <div className="flex flex-col gap-2">
                           {client.contacts?.map((c, i) => (
-                            <div key={i} className="flex items-center justify-between bg-white dark:bg-[#2C2C2E] p-2 rounded-lg border border-gray-200 dark:border-transparent text-xs font-medium text-gray-700 dark:text-gray-300">
-                              <span className="truncate">{c.value}</span>
+                            <div key={i} className="flex items-center justify-between bg-white dark:bg-[#2C2C2E] p-1.5 pl-3 rounded-lg border border-gray-200 dark:border-transparent group/contact">
+                              <a href={getContactLink(c.type, c.value)} target="_blank" rel="noopener noreferrer" className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-[#ff6b00] transition-colors truncate">
+                                {c.value}
+                              </a>
                               <button type="button" onClick={() => {
                                 const newContacts = client.contacts!.filter((_, index) => index !== i);
                                 updateClient(client.id, { contacts: newContacts });
-                              }} className="text-gray-400 hover:text-red-500" title="Remover Contato"><Trash2 size={12} /></button>
+                              }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" title="Remover Contato">
+                                <Trash2 size={14} />
+                              </button>
                             </div>
                           ))}
                           <div className="flex gap-2 mt-2">

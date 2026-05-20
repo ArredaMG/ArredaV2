@@ -125,6 +125,10 @@ export const deals = pgTable('deals', {
   value: doublePrecision('value').notNull().default(0),
   status: text('status').notNull().default('open'), // 'open' | 'won' | 'lost'
   nextActionDate: timestamp('next_action_date'),
+  lossReason: text('loss_reason'),
+  notes: text('notes'),
+  dealContactName: text('deal_contact_name'),
+  dealContactRole: text('deal_contact_role'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
