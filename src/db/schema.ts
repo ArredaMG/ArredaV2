@@ -3,19 +3,14 @@ import { relations } from 'drizzle-orm';
 
 export const clients = pgTable('clients', {
   id: uuid('id').defaultRandom().primaryKey(),
-  nome: text('name').notNull(),
-  cnpj: text('cnpj'),
+  name: text('name').notNull(),
+  document: text('document'),
   contactName: text('contact_name'),
   contactRole: text('contact_role'),
-  whatsapp: text('whatsapp'),
-  email: text('email'),
   leadSource: text('lead_source'),
-  website: text('website'),
-  instagramCompany: text('instagram_company'),
-  linkedinCompany: text('linkedin_company'),
-  youtubeCompany: text('youtube_company'),
-  instagramContact: text('instagram_contact'),
-  linkedinContact: text('linkedin_contact'),
+  contacts: jsonb('contacts').$type<{ type: string; value: string }[]>().default([]),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
 export const projects = pgTable('projects', {
@@ -104,3 +99,49 @@ export const costGroupsRelations = relations(costGroups, ({ one, many }) => ({
 export const costItemsRelations = relations(costItems, ({ one }) => ({
   group: one(costGroups, { fields: [costItems.groupId], references: [costGroups.id] }),
 }));
+
+export const pipelines = pgTable('pipelines', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const stages = pgTable('stages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  pipelineId: uuid('pipeline_id').references(() => pipelines.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  order: integer('order').notNull(),
+  color: text('color').notNull(),
+});
+
+export const deals = pgTable('deals', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  clientId: uuid('client_id').references(() => clients.id, { onDelete: 'cascade' }).notNull(),
+  pipelineId: uuid('pipeline_id').references(() => pipelines.id, { onDelete: 'cascade' }).notNull(),
+  stageId: uuid('stage_id').references(() => stages.id, { onDelete: 'cascade' }).notNull(),
+  title: text('title').notNull(),
+  value: doublePrecision('value').notNull().default(0),
+  status: text('status').notNull().default('open'), // 'open' | 'won' | 'lost'
+  nextActionDate: timestamp('next_action_date'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Pipelines and Stages Relations
+export const pipelinesRelations = relations(pipelines, ({ many }) => ({
+  stages: many(stages),
+  deals: many(deals),
+}));
+
+export const stagesRelations = relations(stages, ({ one, many }) => ({
+  pipeline: one(pipelines, { fields: [stages.pipelineId], references: [pipelines.id] }),
+  deals: many(deals),
+}));
+
+export const dealsRelations = relations(deals, ({ one }) => ({
+  client: one(clients, { fields: [deals.clientId], references: [clients.id] }),
+  pipeline: one(pipelines, { fields: [deals.pipelineId], references: [pipelines.id] }),
+  stage: one(stages, { fields: [deals.stageId], references: [stages.id] }),
+}));
+

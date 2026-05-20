@@ -64,12 +64,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const getClientIdByName = async (clientName: string) => {
-    let clientMatch = clientes.find(c => c.nome === clientName);
+    let clientMatch = clientes.find(c => c.name === clientName);
     if (clientMatch) return clientMatch.id;
     
     // Snapshot
     const previousClients = [...clientes];
-    const newClient: Client = { id: uuidv4(), nome: clientName, cnpj: '' };
+    const newClient: Client = { id: uuidv4(), name: clientName, document: '' };
     
     // Mutação Otimista
     setClientes(prev => [...prev, newClient]);

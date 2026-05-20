@@ -1767,7 +1767,7 @@ export const Planilha: React.FC = () => {
         );
       })()}
       <datalist id="lista-clientes">
-        {clientes.map(c => <option key={c.id} value={c.nome} />)}
+        {clientes.map(c => <option key={c.id} value={c.name} />)}
       </datalist>
       </div>
 
@@ -1776,7 +1776,7 @@ export const Planilha: React.FC = () => {
           project={project}
           activeVersion={activeVersion}
           totalClient={globals.totalClient}
-          clientName={clientes.find(c => c.id === project.clientId)?.nome || 'Cliente não encontrado'}
+          clientName={clientes.find(c => c.id === project.clientId)?.name || 'Cliente não encontrado'}
           onClose={() => setShowOS(false)}
         />
       )}

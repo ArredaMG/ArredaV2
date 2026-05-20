@@ -1,7 +1,7 @@
 import { db } from '../db';
 import * as schema from '../db/schema';
 import { eq, inArray, notInArray, and, ne } from 'drizzle-orm';
-import { Project, ProjectVersion, CostGroup, CostItem, Professional, Equipment, Client, Template } from '../types';
+import { Project, ProjectVersion, CostGroup, CostItem, Professional, Equipment, Client, Template, Pipeline, Stage, Deal } from '../types';
 
 export const fetchAllData = async () => {
   const [clientsData, professionalsData, equipmentsData, templatesData, projectsData] = await Promise.all([
@@ -39,7 +39,7 @@ export const fetchAllData = async () => {
     projects: projectsData.map(p => ({
         id: p.id,
         title: p.title,
-        client: p.client?.nome || 'Cliente não encontrado',
+        client: p.client?.name || 'Cliente não encontrado',
         status: p.status as any,
         projectNumber: p.projectNumber,
         startDate: p.startDate ? p.startDate.toISOString().split('T')[0] : undefined,
@@ -321,7 +321,7 @@ export const updateProject = async (id: string, updates: any) => {
         return {
             id: updatedProject.id,
             title: updatedProject.title,
-            client: updatedProject.client?.nome || 'Cliente não encontrado',
+            client: updatedProject.client?.name || 'Cliente não encontrado',
             status: updatedProject.status as any,
             projectNumber: updatedProject.projectNumber,
             startDate: updatedProject.startDate ? updatedProject.startDate.toISOString().split('T')[0] : undefined,
@@ -480,7 +480,7 @@ export const syncVersionWithDb = async (version: ProjectVersion) => {
     return {
         id: updatedProject.id,
         title: updatedProject.title,
-        client: updatedProject.client?.nome || 'Cliente não encontrado',
+        client: updatedProject.client?.name || 'Cliente não encontrado',
         status: updatedProject.status as any,
         projectNumber: updatedProject.projectNumber,
         startDate: updatedProject.startDate ? updatedProject.startDate.toISOString().split('T')[0] : undefined,
@@ -546,19 +546,12 @@ export const deleteEquipment = async (id: string) => {
 export const addClient = async (client: any) => {
     await db.insert(schema.clients).values({
         id: client.id,
-        nome: client.nome,
-        cnpj: client.cnpj,
+        name: client.name || client.nome,
+        document: client.document || client.cnpj,
         contactName: client.contactName,
         contactRole: client.contactRole,
-        whatsapp: client.whatsapp,
-        email: client.email,
         leadSource: client.leadSource,
-        website: client.website,
-        instagramCompany: client.instagramCompany,
-        linkedinCompany: client.linkedinCompany,
-        youtubeCompany: client.youtubeCompany,
-        instagramContact: client.instagramContact,
-        linkedinContact: client.linkedinContact
+        contacts: client.contacts || []
     });
 };
 
@@ -589,3 +582,72 @@ export const addProjectVersion = async (version: any) => {
 export const deleteProjectVersion = async (id: string) => {
     await db.delete(schema.projectVersions).where(eq(schema.projectVersions.id, id));
 };
+
+export const fetchCRMData = async () => {
+  return await db.query.pipelines.findMany({
+    with: {
+      stages: true,
+      deals: {
+        with: {
+          client: true
+        }
+      }
+    }
+  });
+};
+
+export const createPipeline = async (pipeline: { id: string; name: string }) => {
+  await db.insert(schema.pipelines).values(pipeline);
+};
+
+export const createStage = async (stage: { id: string; pipelineId: string; name: string; order: number; color: string }) => {
+  await db.insert(schema.stages).values(stage);
+};
+
+export const createDeal = async (deal: {
+  id: string;
+  clientId: string;
+  pipelineId: string;
+  stageId: string;
+  title: string;
+  value: number;
+  status: 'open' | 'won' | 'lost';
+  nextActionDate?: Date | null;
+}) => {
+  await db.insert(schema.deals).values({
+    id: deal.id,
+    clientId: deal.clientId,
+    pipelineId: deal.pipelineId,
+    stageId: deal.stageId,
+    title: deal.title,
+    value: deal.value,
+    status: deal.status,
+    nextActionDate: deal.nextActionDate,
+  });
+};
+
+export const updateDealStage = async (dealId: string, stageId: string) => {
+  await db.update(schema.deals).set({ stageId, updatedAt: new Date() }).where(eq(schema.deals.id, dealId));
+};
+
+export const updateDeal = async (dealId: string, updates: Partial<Deal>) => {
+  const dbUpdates: any = { ...updates };
+  if (updates.nextActionDate !== undefined) {
+    dbUpdates.nextActionDate = updates.nextActionDate ? new Date(updates.nextActionDate) : null;
+  }
+  dbUpdates.updatedAt = new Date();
+  await db.update(schema.deals).set(dbUpdates).where(eq(schema.deals.id, dealId));
+};
+
+export const deleteDeal = async (dealId: string) => {
+  await db.delete(schema.deals).where(eq(schema.deals.id, dealId));
+};
+
+export const updatePipeline = async (id: string, name: string) => {
+  await db.update(schema.pipelines).set({ name, updatedAt: new Date() }).where(eq(schema.pipelines.id, id));
+};
+
+export const deletePipeline = async (id: string) => {
+  await db.delete(schema.pipelines).where(eq(schema.pipelines.id, id));
+};
+

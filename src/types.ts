@@ -2,19 +2,14 @@ export type ProjectStatus = 'Pendente' | 'Aprovado' | 'Concluído';
 
 export interface Client {
   id: string;
-  nome: string;
-  cnpj?: string;
+  name: string;
+  document?: string | null;
   contactName?: string | null;
   contactRole?: string | null;
-  whatsapp?: string | null;
-  email?: string | null;
   leadSource?: string | null;
-  website?: string | null;
-  instagramCompany?: string | null;
-  linkedinCompany?: string | null;
-  youtubeCompany?: string | null;
-  instagramContact?: string | null;
-  linkedinContact?: string | null;
+  contacts?: { type: string; value: string }[] | null;
+  createdAt?: string | Date | null;
+  updatedAt?: string | Date | null;
 }
 
 export interface Template {
@@ -99,3 +94,36 @@ export interface Equipment {
   category: string;
   rentalValue: number;
 }
+
+export interface Pipeline {
+  id: string;
+  name: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  stages?: Stage[];
+  deals?: Deal[];
+}
+
+export interface Stage {
+  id: string;
+  pipelineId: string;
+  name: string;
+  order: number;
+  color: string;
+  deals?: Deal[];
+}
+
+export interface Deal {
+  id: string;
+  clientId: string;
+  pipelineId: string;
+  stageId: string;
+  title: string;
+  value: number;
+  status: 'open' | 'won' | 'lost';
+  nextActionDate?: string | Date | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  client?: Client;
+}
+

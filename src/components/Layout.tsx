@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, FileSpreadsheet, Users, Moon, Sun, LogOut, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, LayoutGrid, Database, CalendarDays } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { cn } from '../lib/utils';
 import { UserButton } from '@clerk/clerk-react';
@@ -9,8 +9,8 @@ export const Layout: React.FC = () => {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: FileSpreadsheet, label: 'Orçamentos', path: '/orcamentos' },
-    { icon: Users, label: 'Recursos', path: '/recursos' },
+    { icon: LayoutGrid, label: 'Comercial', path: '/comercial' },
+    { icon: Database, label: 'Banco de Recursos', path: '/recursos' },
     { icon: CalendarDays, label: 'Agenda', path: '/calendario' },
   ];
 
