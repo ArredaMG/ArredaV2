@@ -143,7 +143,7 @@ export const CRM: React.FC = () => {
       const defaultStages = [
         { name: 'Lead Frio', color: '#3b82f6', order: 0 },
         { name: 'Reunião/Briefing', color: '#a855f7', order: 1 },
-        { name: 'Proposta Enviada', color: '#ff6b00', order: 2 },
+        { name: 'Proposta Enviada', color: '#AE0000', order: 2 },
         { name: 'Em Negociação', color: '#eab308', order: 3 },
         { name: 'Ganho/Perdido', color: '#10b981', order: 4 },
       ];
@@ -187,7 +187,7 @@ export const CRM: React.FC = () => {
     const defaultStages = [
       { name: 'Lead Frio', color: '#3b82f6', order: 0 },
       { name: 'Reunião/Briefing', color: '#a855f7', order: 1 },
-      { name: 'Proposta Enviada', color: '#ff6b00', order: 2 },
+      { name: 'Proposta Enviada', color: '#AE0000', order: 2 },
       { name: 'Em Negociação', color: '#eab308', order: 3 },
       { name: 'Ganho/Perdido', color: '#10b981', order: 4 },
     ];
@@ -664,7 +664,7 @@ export const CRM: React.FC = () => {
   if (isLoading || isSeeding) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-black text-gray-500">
-        <Loader2 className="h-10 w-10 animate-spin text-[#ff6b00] mb-4" />
+        <Loader2 className="h-10 w-10 animate-spin text-[#AE0000] mb-4" />
         <p className="text-sm font-medium animate-pulse">
           {isSeeding ? 'Configurando pipeline de vendas inicial...' : 'Carregando funil comercial...'}
         </p>
@@ -678,7 +678,7 @@ export const CRM: React.FC = () => {
       <header className="flex flex-col border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1C1C1E] p-6 z-10 space-y-4 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#ff6b00]/10 flex items-center justify-center text-[#ff6b00]">
+            <div className="h-10 w-10 rounded-xl bg-[#AE0000]/10 flex items-center justify-center text-[#AE0000]">
               <FolderKanban className="h-5 w-5" />
             </div>
             <div>
@@ -698,7 +698,7 @@ export const CRM: React.FC = () => {
                 <select
                   value={currentPipelineId}
                   onChange={(e) => setCurrentPipelineId(e.target.value)}
-                  className="appearance-none bg-gray-100 dark:bg-[#2C2C2E] text-gray-900 dark:text-white pl-4 pr-10 py-2.5 rounded-xl text-sm font-semibold border-none focus:ring-2 focus:ring-[#ff6b00] cursor-pointer hover:bg-gray-200 dark:hover:bg-[#3A3A3C] transition-all"
+                  className="appearance-none bg-gray-100 dark:bg-[#2C2C2E] text-gray-900 dark:text-white pl-4 pr-10 py-2.5 rounded-xl text-sm font-semibold border-none focus:ring-2 focus:ring-[#AE0000] cursor-pointer hover:bg-gray-200 dark:hover:bg-[#3A3A3C] transition-all"
                 >
                   {pipelines.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -745,7 +745,7 @@ export const CRM: React.FC = () => {
                 setSelectedStageId(sortedStages[0]?.id || '');
                 setIsCreateModalOpen(true);
               }}
-              className="flex items-center gap-2 bg-[#ff6b00] hover:bg-[#e05e00] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all"
+              className="flex items-center gap-2 bg-[#AE0000] hover:bg-[#e05e00] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all"
             >
               <Plus className="h-4 w-4" />
               <span>Nova Oportunidade</span>
@@ -782,7 +782,7 @@ export const CRM: React.FC = () => {
                 {totalCardsCount} {totalCardsCount === 1 ? 'card' : 'cards'}
               </span>
             </div>
-            <FolderKanban className="h-6 w-6 text-[#ff6b00] opacity-80" />
+            <FolderKanban className="h-6 w-6 text-[#AE0000] opacity-80" />
           </div>
 
           <div className="bg-gray-50 dark:bg-[#2C2C2E] border border-gray-100 dark:border-[#3A3A3C] rounded-2xl p-4 flex items-center justify-between">
@@ -889,7 +889,7 @@ export const CRM: React.FC = () => {
                 {/* Cards Container */}
                 <div 
                   className={`flex-1 overflow-y-auto p-3.5 space-y-3 scrollbar-thin transition-colors duration-200 ${
-                    isDragTarget ? 'bg-[#ff6b00]/5 dark:bg-[#ff6b00]/10 border-2 border-dashed border-[#ff6b00]/40 rounded-b-2xl' : ''
+                    isDragTarget ? 'bg-[#AE0000]/5 dark:bg-[#AE0000]/10 border-2 border-dashed border-[#AE0000]/40 rounded-b-2xl' : ''
                   }`}
                   style={{ minHeight: '150px' }}
                 >
@@ -924,12 +924,12 @@ export const CRM: React.FC = () => {
                               ? "bg-red-50/30 dark:bg-red-950/10 border-red-300 dark:border-red-800 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:border-red-500"
                               : isToday && deal.status === 'open'
                                 ? "bg-amber-50/30 dark:bg-amber-950/10 border-amber-300 dark:border-amber-800 hover:border-amber-500"
-                                : "bg-gray-50 dark:bg-[#2C2C2E] border-gray-100 dark:border-[#3A3A3C] hover:border-[#ff6b00] dark:hover:border-[#ff6b00]"
+                                : "bg-gray-50 dark:bg-[#2C2C2E] border-gray-100 dark:border-[#3A3A3C] hover:border-[#AE0000] dark:hover:border-[#AE0000]"
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
                             {/* Client Tag */}
-                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#ff6b00] dark:text-[#ff8c00] truncate max-w-[150px]">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#AE0000] dark:text-[#AE0000] truncate max-w-[150px]">
                               {dealClientName}
                             </span>
                             
@@ -1077,7 +1077,7 @@ export const CRM: React.FC = () => {
           })}
           <button
             onClick={() => { setEditingStage(null); setStageNameInput(''); setIsStageModalOpen(true); }}
-            className="w-80 flex-shrink-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-[#1C1C1E]/50 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl max-h-[calc(100vh-270px)] h-full min-h-[200px] text-gray-400 hover:text-[#ff6b00] hover:border-[#ff6b00] transition-all"
+            className="w-80 flex-shrink-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-[#1C1C1E]/50 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl max-h-[calc(100vh-270px)] h-full min-h-[200px] text-gray-400 hover:text-[#AE0000] hover:border-[#AE0000] transition-all"
           >
             <Plus className="h-8 w-8 mb-2" />
             <span className="font-bold text-sm">Adicionar Estágio</span>
@@ -1091,7 +1091,7 @@ export const CRM: React.FC = () => {
           <div className="bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl scale-up">
             <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-[#252529]/30">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-[#ff6b00]" />
+                <Sparkles className="h-5 w-5 text-[#AE0000]" />
                 Nova Oportunidade
               </h2>
               <button 
@@ -1114,7 +1114,7 @@ export const CRM: React.FC = () => {
                   required
                   value={dealClientId}
                   onChange={(e) => setDealClientId(e.target.value)}
-                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]"
+                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]"
                 >
                   <option value="">Selecione um cliente...</option>
                   {clientes.map(c => (
@@ -1133,7 +1133,7 @@ export const CRM: React.FC = () => {
                   placeholder="Ex: Comercial 30s ou Cobertura de Evento..."
                   value={dealTitle}
                   onChange={(e) => setDealTitle(e.target.value)}
-                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white placeholder-gray-400 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]"
+                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white placeholder-gray-400 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]"
                 />
               </div>
 
@@ -1147,7 +1147,7 @@ export const CRM: React.FC = () => {
                     placeholder="0.000,00"
                     value={dealValue}
                     onChange={(e) => setDealValue(e.target.value)}
-                    className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white placeholder-gray-400 rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#ff6b00]"
+                    className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white placeholder-gray-400 rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#AE0000]"
                   />
                 </div>
 
@@ -1159,7 +1159,7 @@ export const CRM: React.FC = () => {
                     type="date"
                     value={dealNextActionDate}
                     onChange={(e) => setDealNextActionDate(e.target.value)}
-                    className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]"
+                    className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]"
                   />
                 </div>
               </div>
@@ -1177,7 +1177,7 @@ export const CRM: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-[#ff6b00] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors"
+                  className="flex-1 bg-[#AE0000] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors"
                 >
                   Criar Card
                 </button>
@@ -1194,7 +1194,7 @@ export const CRM: React.FC = () => {
             
             <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-[#252529]/30 shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Edit3 className="h-5 w-5 text-[#ff6b00]" />
+                <Edit3 className="h-5 w-5 text-[#AE0000]" />
                 Detalhes da Oportunidade e Cliente
               </h2>
               <button onClick={() => { setIsEditModalOpen(false); setEditingDeal(null); resetForm(); }} className="text-gray-400 hover:text-gray-900 dark:hover:text-white text-lg font-bold">&times;</button>
@@ -1210,7 +1210,7 @@ export const CRM: React.FC = () => {
                       <ExternalLink size={12} /> Ver Orçamento
                     </button>
                   ) : (
-                    <button type="button" onClick={() => { setDealToCreateProject(editingDeal); setShowCreateProjectModal(true); setIsEditModalOpen(false); }} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest bg-[#ff6b00]/10 text-[#ff6b00] px-3 py-1.5 rounded-lg hover:bg-[#ff6b00]/20 transition-colors border border-[#ff6b00]/20">
+                    <button type="button" onClick={() => { setDealToCreateProject(editingDeal); setShowCreateProjectModal(true); setIsEditModalOpen(false); }} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest bg-[#AE0000]/10 text-[#AE0000] px-3 py-1.5 rounded-lg hover:bg-[#AE0000]/20 transition-colors border border-[#AE0000]/20">
                       <FileText size={12} /> Gerar Orçamento
                     </button>
                   )}
@@ -1218,26 +1218,26 @@ export const CRM: React.FC = () => {
                 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Título da Oportunidade *</label>
-                  <input type="text" required value={dealTitle} onChange={(e) => setDealTitle(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" />
+                  <input type="text" required value={dealTitle} onChange={(e) => setDealTitle(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$)</label>
                     <div className="relative">
-                      <input type="text" value={dealValue} onChange={(e) => setDealValue(e.target.value)} disabled={!!editingDeal.projectId} className={cn("w-full border-none rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#ff6b00]", editingDeal.projectId ? "bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed" : "bg-gray-100 dark:bg-[#2C2C2E] text-gray-900 dark:text-white")} />
+                      <input type="text" value={dealValue} onChange={(e) => setDealValue(e.target.value)} disabled={!!editingDeal.projectId} className={cn("w-full border-none rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#AE0000]", editingDeal.projectId ? "bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed" : "bg-gray-100 dark:bg-[#2C2C2E] text-gray-900 dark:text-white")} />
                       {editingDeal.projectId && <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" title="Sincronizado com Orçamento" />}
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Próxima Ação</label>
-                    <input type="date" value={dealNextActionDate} onChange={(e) => setDealNextActionDate(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" />
+                    <input type="date" value={dealNextActionDate} onChange={(e) => setDealNextActionDate(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]" />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Anotações da Negociação</label>
-                  <textarea rows={3} placeholder="Dores do cliente, resumo da reunião..." value={dealNotes} onChange={(e) => setDealNotes(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00] resize-none"></textarea>
+                  <textarea rows={3} placeholder="Dores do cliente, resumo da reunião..." value={dealNotes} onChange={(e) => setDealNotes(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000] resize-none"></textarea>
                 </div>
 
                 <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
@@ -1292,7 +1292,7 @@ export const CRM: React.FC = () => {
                       <div>
                         <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-4">Vínculo Comercial</h3>
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Empresa Vinculada *</label>
-                        <select required value={dealClientId} onChange={(e) => setDealClientId(e.target.value)} className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]">
+                        <select required value={dealClientId} onChange={(e) => setDealClientId(e.target.value)} className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]">
                           <option value="">Selecione um cliente...</option>
                           {clientes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
@@ -1314,7 +1314,7 @@ export const CRM: React.FC = () => {
                                     setLinkedDecisores(prev => [...prev, selectedId]);
                                   }
                                 }}
-                                className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-2.5 px-3.5 text-xs font-semibold focus:ring-2 focus:ring-[#ff6b00]"
+                                className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-2.5 px-3.5 text-xs font-semibold focus:ring-2 focus:ring-[#AE0000]"
                               >
                                 <option value="">Selecione um decisor cadastrado...</option>
                                 {unlinkedDecisores.map(d => (
@@ -1338,7 +1338,7 @@ export const CRM: React.FC = () => {
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="flex flex-col flex-1">
                                       <span className="font-bold text-sm text-gray-900 dark:text-white">{person.name}</span>
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-[#ff6b00] mt-0.5">{person.role || 'Sem Cargo'}</span>
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-[#AE0000] mt-0.5">{person.role || 'Sem Cargo'}</span>
                                     </div>
                                     <button 
                                       type="button" 
@@ -1359,7 +1359,7 @@ export const CRM: React.FC = () => {
                                           href={c.type === 'whatsapp' ? `https://wa.me/${c.value.replace(/\D/g, '')}` : c.type === 'email' ? `mailto:${c.value}` : '#'} 
                                           target="_blank" 
                                           rel="noopener noreferrer" 
-                                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:text-[#ff6b00] hover:border-[#ff6b00]/30 transition-all truncate"
+                                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:text-[#AE0000] hover:border-[#AE0000]/30 transition-all truncate"
                                         >
                                           {getContactIcon(c.type)}
                                           <span className="truncate max-w-[120px]">{c.value}</span>
@@ -1386,7 +1386,7 @@ export const CRM: React.FC = () => {
                                     value={newDecisorName}
                                     onChange={(e) => setNewDecisorName(e.target.value)}
                                     placeholder="Nome completo"
-                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#ff6b00]"
+                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#AE0000]"
                                   />
                                 </div>
                                 <div>
@@ -1396,7 +1396,7 @@ export const CRM: React.FC = () => {
                                     value={newDecisorRole}
                                     onChange={(e) => setNewDecisorRole(e.target.value)}
                                     placeholder="Ex: CEO, Gerente..."
-                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#ff6b00]"
+                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#AE0000]"
                                   />
                                 </div>
                                 <div>
@@ -1406,7 +1406,7 @@ export const CRM: React.FC = () => {
                                     value={newDecisorContact}
                                     onChange={(e) => setNewDecisorContact(e.target.value)}
                                     placeholder="Ex: cel@whats.com ou @insta"
-                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#ff6b00]"
+                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#AE0000]"
                                   />
                                 </div>
                               </div>
@@ -1454,7 +1454,7 @@ export const CRM: React.FC = () => {
                                       alert('Erro ao criar decisor.');
                                     }
                                   }} 
-                                  className="flex-1 py-1.5 bg-[#ff6b00] hover:bg-[#e05e00] text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                  className="flex-1 py-1.5 bg-[#AE0000] hover:bg-[#e05e00] text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
                                 >
                                   Salvar &amp; Vincular
                                 </button>
@@ -1464,7 +1464,7 @@ export const CRM: React.FC = () => {
                             <button 
                               type="button" 
                               onClick={() => setIsAddingNewDecisor(true)} 
-                              className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-500 hover:text-[#ff6b00] hover:border-[#ff6b00] hover:bg-[#ff6b00]/5 transition-all"
+                              className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-500 hover:text-[#AE0000] hover:border-[#AE0000] hover:bg-[#AE0000]/5 transition-all"
                             >
                               <UserPlus size={14} /> Novo Decisor
                             </button>
@@ -1480,7 +1480,7 @@ export const CRM: React.FC = () => {
             <div className="px-6 py-4 bg-gray-50/50 dark:bg-[#252529]/30 border-t border-gray-100 dark:border-gray-800 flex gap-3 shrink-0">
               <button type="button" onClick={() => { handleDeleteDeal(editingDeal.id); setIsEditModalOpen(false); setEditingDeal(null); resetForm(); }} className="px-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center" title="Excluir Oportunidade"><Trash2 className="h-4 w-4" /></button>
               <button type="button" onClick={() => { setIsEditModalOpen(false); setEditingDeal(null); resetForm(); }} className="flex-1 bg-gray-100 dark:bg-[#2C2C2E] hover:bg-gray-200 dark:hover:bg-[#3A3A3C] text-gray-800 dark:text-white py-3 rounded-xl text-sm font-semibold transition-colors">Cancelar</button>
-              <button type="button" onClick={handleUpdateDeal} className="flex-1 bg-[#ff6b00] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors">Salvar Alterações</button>
+              <button type="button" onClick={handleUpdateDeal} className="flex-1 bg-[#AE0000] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors">Salvar Alterações</button>
             </div>
           </div>
         </div>
@@ -1492,7 +1492,7 @@ export const CRM: React.FC = () => {
           <div className="bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl scale-up">
             <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-[#252529]/30">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-[#ff6b00]" />
+                <Sparkles className="h-5 w-5 text-[#AE0000]" />
                 Novo Funil de Vendas
               </h2>
               <button 
@@ -1517,7 +1517,7 @@ export const CRM: React.FC = () => {
                   placeholder="Ex: Eventos, Corporativo, Parcerias..."
                   value={newPipelineName}
                   onChange={(e) => setNewPipelineName(e.target.value)}
-                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white placeholder-gray-400 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]"
+                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white placeholder-gray-400 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]"
                 />
               </div>
 
@@ -1534,7 +1534,7 @@ export const CRM: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-[#ff6b00] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors"
+                  className="flex-1 bg-[#AE0000] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors"
                 >
                   Criar Funil
                 </button>
@@ -1550,7 +1550,7 @@ export const CRM: React.FC = () => {
           <div className="bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl scale-up">
             <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-[#252529]/30">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-[#ff6b00]" />
+                <Sparkles className="h-5 w-5 text-[#AE0000]" />
                 Renomear Funil de Vendas
               </h2>
               <button 
@@ -1576,7 +1576,7 @@ export const CRM: React.FC = () => {
                   placeholder="Ex: Eventos, Corporativo, Parcerias..."
                   value={editingPipelineName}
                   onChange={(e) => setEditingPipelineName(e.target.value)}
-                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white placeholder-gray-400 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]"
+                  className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white placeholder-gray-400 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]"
                 />
               </div>
 
@@ -1594,7 +1594,7 @@ export const CRM: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-[#ff6b00] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors"
+                  className="flex-1 bg-[#AE0000] hover:bg-[#e05e00] text-white py-3 rounded-xl text-sm font-bold shadow-md transition-colors"
                 >
                   Salvar
                 </button>
@@ -1628,11 +1628,11 @@ export const CRM: React.FC = () => {
             <form onSubmit={handleSaveStage} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Nome da Coluna *</label>
-                <input type="text" required value={stageNameInput} onChange={(e) => setStageNameInput(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" placeholder="Ex: Contrato Assinado" />
+                <input type="text" required value={stageNameInput} onChange={(e) => setStageNameInput(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000]" placeholder="Ex: Contrato Assinado" />
               </div>
               <div className="pt-2 flex gap-3">
                 <button type="button" onClick={() => setIsStageModalOpen(false)} className="flex-1 bg-gray-100 dark:bg-[#2C2C2E] text-gray-800 dark:text-white py-3 rounded-xl text-sm font-semibold">Cancelar</button>
-                <button type="submit" className="flex-1 bg-[#ff6b00] text-white py-3 rounded-xl text-sm font-bold shadow-md">Salvar</button>
+                <button type="submit" className="flex-1 bg-[#AE0000] text-white py-3 rounded-xl text-sm font-bold shadow-md">Salvar</button>
               </div>
             </form>
           </div>

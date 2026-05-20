@@ -32,7 +32,7 @@ export const ClienteProfile: React.FC = () => {
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">O cliente solicitado não pôde ser localizado ou foi excluído do sistema.</p>
           <button 
             onClick={() => navigate('/clientes')}
-            className="flex items-center gap-2 bg-[#ff6b00] hover:bg-[#ff8c00] text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 mx-auto text-sm"
+            className="flex items-center gap-2 bg-[#AE0000] hover:bg-[#ff8c00] text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 mx-auto text-sm"
           >
             <ArrowLeft size={16} />
             <span>Voltar para Lista</span>
@@ -173,7 +173,7 @@ export const ClienteProfile: React.FC = () => {
           {/* Main Title Area */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mt-2">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#ff6b00] dark:text-[#ff8c00]">Perfil do Cliente</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#AE0000] dark:text-[#ff8c00]">Perfil do Cliente</span>
               <h1 className="text-3xl font-extrabold tracking-tight mt-1 text-gray-900 dark:text-white">{client.name}</h1>
               {client.document && (
                 <div className="flex items-center gap-1.5 mt-1.5 text-xs font-mono text-zinc-400 dark:text-zinc-500">
@@ -203,7 +203,7 @@ export const ClienteProfile: React.FC = () => {
             {/* Card Pessoas & Contatos */}
             <div className="bg-white dark:bg-[#1C1C1E] p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col gap-6">
               <div className="flex items-center gap-2 mb-2">
-                <Users className="h-5 w-5 text-[#ff6b00]" />
+                <Users className="h-5 w-5 text-[#AE0000]" />
                 <h2 className="text-sm font-bold text-gray-900 dark:text-white">Pessoas &amp; Contatos</h2>
               </div>
 
@@ -212,13 +212,13 @@ export const ClienteProfile: React.FC = () => {
                   {client.decisores.map((decisor: any) => (
                     <div key={decisor.id} className="bg-gray-50 dark:bg-[#2C2C2E]/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800">
                       <div className="font-bold text-sm text-gray-900 dark:text-white">{decisor.name}</div>
-                      <div className="text-[10px] font-black uppercase tracking-wider text-[#ff6b00] mb-3">{decisor.role}</div>
+                      <div className="text-[10px] font-black uppercase tracking-wider text-[#AE0000] mb-3">{decisor.role}</div>
                       <div className="flex flex-col gap-2">
                         {decisor.contacts && decisor.contacts.length > 0 ? (
                           decisor.contacts.map((c: any, i: number) => (
                             <div key={i} className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1C1C1E] p-2 rounded-lg border border-gray-100 dark:border-gray-800">
                               <span className="text-gray-400 capitalize w-20">[{c.type}]</span>
-                              <a href={c.type === 'whatsapp' ? `https://wa.me/${c.value.replace(/\D/g, '')}` : c.type === 'email' ? `mailto:${c.value}` : '#'} target="_blank" rel="noopener noreferrer" className="hover:text-[#ff6b00] transition-colors truncate">{c.value}</a>
+                              <a href={c.type === 'whatsapp' ? `https://wa.me/${c.value.replace(/\D/g, '')}` : c.type === 'email' ? `mailto:${c.value}` : '#'} target="_blank" rel="noopener noreferrer" className="hover:text-[#AE0000] transition-colors truncate">{c.value}</a>
                             </div>
                           ))
                         ) : (
@@ -407,7 +407,7 @@ export const ClienteProfile: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!editName.trim()}
-                  className="bg-[#ff6b00] hover:bg-[#ff8c00] disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 text-sm"
+                  className="bg-[#AE0000] hover:bg-[#ff8c00] disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 text-sm"
                 >
                   Confirmar Alterações
                 </button>
