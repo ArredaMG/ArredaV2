@@ -432,7 +432,17 @@ export const CRM: React.FC = () => {
       loadCRMData();
     }
   };
-
+  // Delete a deal
+  const handleDeleteDeal = async (dealId: string) => {
+    if (!window.confirm('Deseja excluir esta oportunidade?')) return;
+    try {
+      await dbService.deleteDeal(dealId);
+      await loadCRMData(true);
+    } catch (error) {
+      console.error('Error deleting deal:', error);
+      alert('Erro ao excluir a oportunidade.');
+    }
+  };
   // Create a blank project from a deal
   const createBlankProjectFromDeal = async () => {
     if (!dealToCreateProject) return;
@@ -785,7 +795,7 @@ export const CRM: React.FC = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // handleDeleteDeal(deal.id); // Assuming this is defined elsewhere
+                                  handleDeleteDeal(deal.id);
                                 }}
                                 className="p-1 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-500"
                               >
@@ -1221,4 +1231,8 @@ export const CRM: React.FC = () => {
         onCreateBlank={createBlankProjectFromDeal}
         onCreateFromTemplate={createFromTemplateFromDeal}
       />
-      </div>
+    </div>
+  );
+};
+
+export default CRM;
