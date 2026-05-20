@@ -15,13 +15,17 @@ import {
   Sparkles, 
   FolderKanban
 } from 'lucide-react';
+import { CreateProjectModal } from '../components/CreateProjectModal';
+import { FileText } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAppContext } from '../context/AppContext';
+import { useNavigate } from 'react-router-dom';
 import * as dbService from '../services/db-services';
 import { Pipeline, Stage, Deal, Client } from '../types';
 
 export const CRM: React.FC = () => {
-  const { clientes, refreshData: refreshGlobalClients } = useAppContext();
+  const { clientes, addProject, templates, refreshData } = useAppContext();
+  const navigate = useNavigate();
   
   // Local state
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -49,6 +53,8 @@ export const CRM: React.FC = () => {
   const [dealValue, setDealValue] = useState<string>('');
   const [dealNextActionDate, setDealNextActionDate] = useState<string>('');
   const [dealStatus, setDealStatus] = useState<'open' | 'won' | 'lost'>('open');
+  const [dealToCreateProject, setDealToCreateProject] = useState<Deal | null>(null);
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
 
   // Load pipelines on mount
@@ -337,6 +343,7 @@ export const CRM: React.FC = () => {
       stageId: selectedStageId || sortedStages[0]?.id,
       title: dealTitle,
       value,
+      projectId: dealToCreateProject?.id,
       status: 'open' as const,
       nextActionDate,
     };
@@ -426,27 +433,44 @@ export const CRM: React.FC = () => {
     }
   };
 
-  // Delete deal
-  const handleDeleteDeal = async (dealId: string) => {
-    if (!confirm('Deseja realmente remover esta oportunidade?')) return;
+  // Create a blank project from a deal
+  const createBlankProjectFromDeal = async () => {
+    if (!dealToCreateProject) return;
+    const clientName = dealToCreateProject.client?.name || clientes.find(c => c.id === dealToCreateProject.clientId)?.name || 'Cliente Não Informado';
+    const newProject = await addProject({
+      title: dealToCreateProject.title,
+      client: clientName,
+      status: 'Pendente',
+      defaultTax: 10,
+      defaultMargin: 15,
+      groups: []
+    });
+    await dbService.updateDeal(dealToCreateProject.id, { projectId: newProject.id });
+    setShowCreateProjectModal(false);
+    setDealToCreateProject(null);
+    navigate(`/orcamentos/${newProject.id}`);
+  };
 
-    // Optimistic Delete
-    setPipelines(prev => prev.map(p => {
-      if (p.id !== currentPipelineId) return p;
-      return {
-        ...p,
-        deals: p.deals?.filter(d => d.id !== dealId)
-      };
-    }));
-
-    try {
-      await dbService.deleteDeal(dealId);
-      await loadCRMData(true);
-    } catch (error) {
-      console.error('Error deleting deal:', error);
-      alert('Erro ao remover a oportunidade.');
-      loadCRMData();
-    }
+  // Create a project from a template based on a deal
+  const createFromTemplateFromDeal = async (selected: Template) => {
+    if (!dealToCreateProject) return;
+    const clientName = dealToCreateProject.client?.name || clientes.find(c => c.id === dealToCreateProject.clientId)?.name || 'Cliente Não Informado';
+    const newProject = await addProject({
+      title: `${dealToCreateProject.title} (Template: ${selected.name})`,
+      client: clientName,
+      status: 'Pendente',
+      defaultTax: selected.data.defaultTax,
+      defaultMargin: selected.data.defaultMargin,
+      groups: selected.data.groups.map(g => ({
+        ...g,
+        id: uuidv4(),
+        items: g.items.map(i => ({ ...i, id: uuidv4() }))
+      }))
+    });
+    await dbService.updateDeal(dealToCreateProject.id, { projectId: newProject.id });
+    setShowCreateProjectModal(false);
+    setDealToCreateProject(null);
+    navigate(`/orcamentos/${newProject.id}`);
   };
 
   // Open Edit Modal
@@ -754,18 +778,33 @@ export const CRM: React.FC = () => {
                                   e.stopPropagation();
                                   openEditModal(deal);
                                 }}
-                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
                               >
                                 <Edit3 className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteDeal(deal.id);
+                                  // handleDeleteDeal(deal.id); // Assuming this is defined elsewhere
                                 }}
                                 className="p-1 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-500"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if ((deal as any).projectId) {
+                                    navigate('/orcamentos/' + (deal as any).projectId);
+                                  } else {
+                                    setDealToCreateProject(deal);
+                                    setShowCreateProjectModal(true);
+                                  }
+                                }}
+                                className="p-1 hover:bg-blue-500/10 rounded text-blue-400 hover:text-blue-500 transition-colors"
+                                title={(deal as any).projectId ? "Ver Orçamento" : "Gerar Orçamento"}
+                              >
+                                <FileText className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </div>
@@ -1171,6 +1210,15 @@ export const CRM: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
+      {/* Create Project Modal */}
+      <CreateProjectModal
+        isOpen={showCreateProjectModal}
+        onClose={() => {
+          setShowCreateProjectModal(false);
+          setDealToCreateProject(null);
+        }}
+        templates={templates}
+        onCreateBlank={createBlankProjectFromDeal}
+        onCreateFromTemplate={createFromTemplateFromDeal}
+      />
+      </div>

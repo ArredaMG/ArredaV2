@@ -118,6 +118,7 @@ export interface Deal {
   clientId: string;
   pipelineId: string;
   stageId: string;
+  projectId?: string | null;
   title: string;
   value: number;
   status: 'open' | 'won' | 'lost';

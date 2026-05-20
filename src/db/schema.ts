@@ -120,6 +120,7 @@ export const deals = pgTable('deals', {
   clientId: uuid('client_id').references(() => clients.id, { onDelete: 'cascade' }).notNull(),
   pipelineId: uuid('pipeline_id').references(() => pipelines.id, { onDelete: 'cascade' }).notNull(),
   stageId: uuid('stage_id').references(() => stages.id, { onDelete: 'cascade' }).notNull(),
+  projectId: uuid('project_id').references(() => projects.id), // optional relationship to projects
   title: text('title').notNull(),
   value: doublePrecision('value').notNull().default(0),
   status: text('status').notNull().default('open'), // 'open' | 'won' | 'lost'

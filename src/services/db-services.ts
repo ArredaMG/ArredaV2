@@ -609,6 +609,7 @@ export const createDeal = async (deal: {
   clientId: string;
   pipelineId: string;
   stageId: string;
+  projectId?: string; // optional link to a project
   title: string;
   value: number;
   status: 'open' | 'won' | 'lost';
@@ -619,6 +620,7 @@ export const createDeal = async (deal: {
     clientId: deal.clientId,
     pipelineId: deal.pipelineId,
     stageId: deal.stageId,
+    ...(deal.projectId ? { projectId: deal.projectId } : {}),
     title: deal.title,
     value: deal.value,
     status: deal.status,
@@ -634,6 +636,9 @@ export const updateDeal = async (dealId: string, updates: Partial<Deal>) => {
   const dbUpdates: any = { ...updates };
   if (updates.nextActionDate !== undefined) {
     dbUpdates.nextActionDate = updates.nextActionDate ? new Date(updates.nextActionDate) : null;
+  }
+  if (updates.projectId !== undefined) {
+    dbUpdates.projectId = updates.projectId ? updates.projectId : null;
   }
   dbUpdates.updatedAt = new Date();
   await db.update(schema.deals).set(dbUpdates).where(eq(schema.deals.id, dealId));
