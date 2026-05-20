@@ -656,3 +656,16 @@ export const deletePipeline = async (id: string) => {
   await db.delete(schema.pipelines).where(eq(schema.pipelines.id, id));
 };
 
+export const updateDealByProjectId = async (projectId: string, updates: Partial<Deal>) => {
+  const dbUpdates: any = { ...updates, updatedAt: new Date() };
+  await db.update(schema.deals).set(dbUpdates).where(eq(schema.deals.projectId, projectId));
+};
+
+export const updateStage = async (id: string, name: string) => {
+  await db.update(schema.stages).set({ name }).where(eq(schema.stages.id, id));
+};
+
+export const deleteStage = async (id: string) => {
+  await db.delete(schema.stages).where(eq(schema.stages.id, id));
+};
+

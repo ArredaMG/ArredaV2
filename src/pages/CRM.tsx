@@ -57,6 +57,10 @@ export const CRM: React.FC = () => {
   const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
 
+  const [isStageModalOpen, setIsStageModalOpen] = useState(false);
+  const [editingStage, setEditingStage] = useState<Stage | null>(null);
+  const [stageNameInput, setStageNameInput] = useState('');
+
   // Load pipelines on mount
   const loadCRMData = async (shouldLoadSilence = false) => {
     if (!shouldLoadSilence) setIsLoading(true);
@@ -443,6 +447,34 @@ export const CRM: React.FC = () => {
       alert('Erro ao excluir a oportunidade.');
     }
   };
+
+  const handleSaveStage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stageNameInput.trim()) return;
+    
+    if (editingStage) {
+      await dbService.updateStage(editingStage.id, stageNameInput);
+    } else {
+      const newOrder = sortedStages.length > 0 ? sortedStages[sortedStages.length - 1].order + 1 : 0;
+      await dbService.createStage({
+        id: uuidv4(),
+        pipelineId: currentPipelineId,
+        name: stageNameInput,
+        color: '#9ca3af',
+        order: newOrder
+      });
+    }
+    setIsStageModalOpen(false);
+    setStageNameInput('');
+    setEditingStage(null);
+    await loadCRMData(true);
+  };
+
+  const handleDeleteStage = async (id: string, name: string) => {
+    if (!confirm(`Excluir a coluna "${name}"? Todas as oportunidades dentro dela serão PERDIDAS!`)) return;
+    await dbService.deleteStage(id);
+    await loadCRMData(true);
+  };
   // Create a blank project from a deal
   const createBlankProjectFromDeal = async () => {
     if (!dealToCreateProject) return;
@@ -698,9 +730,11 @@ export const CRM: React.FC = () => {
                 <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#252529]/30 rounded-t-2xl">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                        {stage.name}
-                      </h2>
+                      <div className="flex items-center gap-1.5">
+                        <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">{stage.name}</h2>
+                        <button onClick={() => { setEditingStage(stage); setStageNameInput(stage.name); setIsStageModalOpen(true); }} className="text-gray-400 hover:text-blue-500 ml-1" title="Renomear Coluna"><Edit3 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleDeleteStage(stage.id, stage.name)} className="text-gray-400 hover:text-red-500" title="Excluir Coluna"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                       <span className="px-2 py-0.5 text-[11px] font-black rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                         {stageDeals.length}
                       </span>
@@ -848,6 +882,13 @@ export const CRM: React.FC = () => {
               </div>
             );
           })}
+          <button
+            onClick={() => { setEditingStage(null); setStageNameInput(''); setIsStageModalOpen(true); }}
+            className="w-80 flex-shrink-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-[#1C1C1E]/50 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl max-h-[calc(100vh-270px)] h-full min-h-[200px] text-gray-400 hover:text-[#ff6b00] hover:border-[#ff6b00] transition-all"
+          >
+            <Plus className="h-8 w-8 mb-2" />
+            <span className="font-bold text-sm">Adicionar Estágio</span>
+          </button>
         </div>
       </div>
 
@@ -1231,6 +1272,30 @@ export const CRM: React.FC = () => {
         onCreateBlank={createBlankProjectFromDeal}
         onCreateFromTemplate={createFromTemplateFromDeal}
       />
+
+      {/* Stage Modal */}
+      {isStageModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl scale-up">
+            <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                {editingStage ? 'Renomear Coluna' : 'Nova Coluna'}
+              </h2>
+              <button onClick={() => setIsStageModalOpen(false)} className="text-gray-400 hover:text-gray-900 dark:hover:text-white text-lg font-bold">&times;</button>
+            </div>
+            <form onSubmit={handleSaveStage} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Nome da Coluna *</label>
+                <input type="text" required value={stageNameInput} onChange={(e) => setStageNameInput(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" placeholder="Ex: Contrato Assinado" />
+              </div>
+              <div className="pt-2 flex gap-3">
+                <button type="button" onClick={() => setIsStageModalOpen(false)} className="flex-1 bg-gray-100 dark:bg-[#2C2C2E] text-gray-800 dark:text-white py-3 rounded-xl text-sm font-semibold">Cancelar</button>
+                <button type="submit" className="flex-1 bg-[#ff6b00] text-white py-3 rounded-xl text-sm font-bold shadow-md">Salvar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

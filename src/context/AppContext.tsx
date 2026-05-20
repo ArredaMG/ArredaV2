@@ -210,6 +210,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if ('recordingDates' in updates) dbUpdates.recordingDates = updates.recordingDates;
 
       await dbService.updateProject(id, dbUpdates);
+
+      if (updates.title) {
+        try {
+          await dbService.updateDealByProjectId(id, { title: updates.title });
+        } catch (err) {
+          console.error('Erro ao sincronizar titulo do deal:', err);
+        }
+      }
     } catch (error) {
       // 4. Rollback em caso de falha
       console.error("ERRO NEON DB:", error);
