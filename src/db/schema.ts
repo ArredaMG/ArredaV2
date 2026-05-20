@@ -126,7 +126,7 @@ export const deals = pgTable('deals', {
   status: text('status').notNull().default('open'), // 'open' | 'won' | 'lost'
   lossReason: text('loss_reason'),
   notes: text('notes'),
-  dealContacts: jsonb('deal_contacts').$type<{ name: string; role: string; contact: string }[]>().default([]),
+  dealContacts: jsonb('deal_contacts').$type<{ id: string; name: string; role: string; contacts: { type: string; value: string }[] }[]>().default([]),
   nextActionDate: timestamp('next_action_date'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

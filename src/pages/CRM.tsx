@@ -16,7 +16,13 @@ import {
   FolderKanban,
   Lock,
   ExternalLink,
-  UserPlus
+  UserPlus,
+  Mail,
+  MessageCircle,
+  Instagram,
+  Linkedin,
+  Globe,
+  X
 } from 'lucide-react';
 import { CreateProjectModal } from '../components/CreateProjectModal';
 import { FileText } from 'lucide-react';
@@ -28,6 +34,25 @@ import { Pipeline, Stage, Deal, Client, Template } from '../types';
 import { calculateFinancials } from '../lib/project-utils';
 import { cn } from '../lib/utils';
 
+const detectContactType = (val: string) => {
+  const value = val.trim().toLowerCase();
+  if (value.includes('@') && value.includes('.com')) return 'email';
+  const cleanPhone = value.replace(/[\s\-\+\(\)]/g, '');
+  if (/^\d{8,15}$/.test(cleanPhone)) return 'whatsapp';
+  if (value.includes('instagram.com') || val.trim().startsWith('@')) return 'instagram';
+  if (value.includes('linkedin.com')) return 'linkedin';
+  return 'website';
+};
+
+const getContactIcon = (type: string) => {
+  switch (type) {
+    case 'email': return <Mail size={12} className="text-zinc-500" />;
+    case 'whatsapp': return <MessageCircle size={12} className="text-emerald-500" />;
+    case 'instagram': return <Instagram size={12} className="text-pink-500" />;
+    case 'linkedin': return <Linkedin size={12} className="text-blue-500" />;
+    default: return <Globe size={12} className="text-teal-500" />;
+  }
+};
 
 export const CRM: React.FC = () => {
   const { clientes, addProject, templates, refreshData, updateClient, projects } = useAppContext();
@@ -65,10 +90,7 @@ export const CRM: React.FC = () => {
 
   const [dealLossReason, setDealLossReason] = useState<string>('');
   const [dealNotes, setDealNotes] = useState<string>('');
-  const [dealContacts, setDealContacts] = useState<{ name: string; role: string; contact: string }[]>([]);
-  const [newPersonName, setNewPersonName] = useState('');
-  const [newPersonRole, setNewPersonRole] = useState('');
-  const [newPersonContact, setNewPersonContact] = useState('');
+  const [dealContacts, setDealContacts] = useState<{ id: string; name: string; role: string; contacts: { type: string; value: string }[] }[]>([]);
 
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
@@ -568,7 +590,13 @@ export const CRM: React.FC = () => {
     setDealStatus(deal.status);
     setDealLossReason(deal.lossReason || '');
     setDealNotes(deal.notes || '');
-    setDealContacts(deal.dealContacts || []);
+    const loadedContacts = (deal.dealContacts || []).map((c: any) => ({
+      id: c.id || uuidv4(),
+      name: c.name || '',
+      role: c.role || '',
+      contacts: c.contacts || (c.contact ? [{ type: detectContactType(c.contact), value: c.contact }] : [])
+    }));
+    setDealContacts(loadedContacts);
     
     if (deal.nextActionDate) {
       const date = new Date(deal.nextActionDate);
@@ -590,9 +618,6 @@ export const CRM: React.FC = () => {
     setDealLossReason('');
     setDealNotes('');
     setDealContacts([]);
-    setNewPersonName('');
-    setNewPersonRole('');
-    setNewPersonContact('');
   };
 
   // Check if date is overdue
@@ -1202,33 +1227,88 @@ export const CRM: React.FC = () => {
 
                 <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
                   <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-3">Pessoas (Decisores)</h3>
-                  <div className="flex flex-col gap-2 mb-3">
-                    {dealContacts.map((contact, idx) => (
-                      <div key={idx} className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex items-start justify-between group">
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-gray-900 dark:text-white truncate">{contact.name}</span>
-                          <span className="text-[10px] text-gray-500 uppercase tracking-wider">{contact.role}</span>
-                          {contact.contact && <span className="text-xs font-mono text-[#ff6b00] mt-1">{contact.contact}</span>}
+                  
+                  <div className="flex flex-col gap-3 mb-3">
+                    {dealContacts.map((person, idx) => (
+                      <div key={person.id} className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex flex-col gap-2 shadow-sm transition-all focus-within:border-[#ff6b00]/50">
+                        
+                        {/* NOME E CARGO EDITÁVEIS */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-col flex-1 gap-1">
+                            <input 
+                              type="text" 
+                              value={person.name} 
+                              onChange={(e) => { const newContacts = [...dealContacts]; newContacts[idx].name = e.target.value; setDealContacts(newContacts); }} 
+                              className="font-bold text-sm bg-transparent border-none outline-none focus:ring-1 focus:ring-[#ff6b00]/30 rounded px-1 -ml-1 text-gray-900 dark:text-white placeholder-gray-400" 
+                              placeholder="Nome do Decisor" 
+                            />
+                            <input 
+                              type="text" 
+                              value={person.role} 
+                              onChange={(e) => { const newContacts = [...dealContacts]; newContacts[idx].role = e.target.value; setDealContacts(newContacts); }} 
+                              className="text-[10px] font-black uppercase tracking-wider bg-transparent border-none outline-none focus:ring-1 focus:ring-[#ff6b00]/30 rounded px-1 -ml-1 text-[#ff6b00] placeholder-gray-400" 
+                              placeholder="Cargo (Ex: Diretor Financeiro)" 
+                            />
+                          </div>
+                          <button type="button" onClick={() => setDealContacts(prev => prev.filter(p => p.id !== person.id))} className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                            <Trash2 size={14} />
+                          </button>
                         </div>
-                        <button type="button" onClick={() => setDealContacts(prev => prev.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 p-1 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
+
+                        {/* LISTA DE CONTATOS (CHIPS) */}
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {person.contacts.map((c: any, cIdx: number) => (
+                            <div key={cIdx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-300">
+                              {getContactIcon(c.type)}
+                              <span className="truncate max-w-[120px]">{c.value}</span>
+                              <button type="button" onClick={() => { const newContacts = [...dealContacts]; newContacts[idx].contacts = newContacts[idx].contacts.filter((_: any, i: number) => i !== cIdx); setDealContacts(newContacts); }} className="hover:text-red-500 ml-0.5 text-gray-400">
+                                <X size={10} strokeWidth={3} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* ADICIONAR NOVO CONTATO AO DECISOR */}
+                        <div className="flex gap-2 mt-1">
+                          <input 
+                            type="text" 
+                            id={`contact-input-${person.id}`} 
+                            placeholder="E-mail, whatsapp, insta..." 
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const val = e.currentTarget.value.trim();
+                                if (val) {
+                                  const newContacts = [...dealContacts];
+                                  newContacts[idx].contacts.push({ type: detectContactType(val), value: val });
+                                  setDealContacts(newContacts);
+                                  e.currentTarget.value = '';
+                                }
+                              }
+                            }} 
+                            className="flex-1 bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-lg px-2 py-1.5 text-[10px] font-medium outline-none focus:border-[#ff6b00] text-gray-800 dark:text-gray-200" 
+                          />
+                          <button type="button" onClick={() => {
+                            const input = document.getElementById(`contact-input-${person.id}`) as HTMLInputElement;
+                            const val = input.value.trim();
+                            if (val) {
+                              const newContacts = [...dealContacts];
+                              newContacts[idx].contacts.push({ type: detectContactType(val), value: val });
+                              setDealContacts(newContacts);
+                              input.value = '';
+                            }
+                          }} className="bg-gray-200 dark:bg-gray-700 hover:bg-[#ff6b00] hover:text-white text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors">
+                            Add
+                          </button>
+                        </div>
                       </div>
                     ))}
-                    {dealContacts.length === 0 && <span className="text-xs text-gray-400 italic">Nenhuma pessoa adicionada a esta negociação.</span>}
                   </div>
 
-                  {/* Form Adicionar Pessoa */}
-                  <div className="bg-gray-100 dark:bg-[#252529] p-3 rounded-xl flex flex-col gap-2 border border-dashed border-gray-300 dark:border-gray-700">
-                    <div className="flex gap-2">
-                      <input type="text" placeholder="Nome" value={newPersonName} onChange={e => setNewPersonName(e.target.value)} className="w-1/2 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs outline-none" />
-                      <input type="text" placeholder="Cargo" value={newPersonRole} onChange={e => setNewPersonRole(e.target.value)} className="w-1/2 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs outline-none" />
-                    </div>
-                    <div className="flex gap-2">
-                      <input type="text" placeholder="E-mail ou WhatsApp" value={newPersonContact} onChange={e => setNewPersonContact(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newPersonName) { setDealContacts(prev => [...prev, { name: newPersonName, role: newPersonRole, contact: newPersonContact }]); setNewPersonName(''); setNewPersonRole(''); setNewPersonContact(''); }}}} className="flex-1 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs outline-none" />
-                      <button type="button" onClick={() => { if (newPersonName) { setDealContacts(prev => [...prev, { name: newPersonName, role: newPersonRole, contact: newPersonContact }]); setNewPersonName(''); setNewPersonRole(''); setNewPersonContact(''); }}} className="bg-gray-200 dark:bg-gray-700 hover:bg-[#ff6b00] hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">Add</button>
-                    </div>
-                  </div>
+                  {/* BOTÃO CRIAR NOVO DECISOR */}
+                  <button type="button" onClick={() => setDealContacts(prev => [...prev, { id: uuidv4(), name: '', role: '', contacts: [] }])} className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-500 hover:text-[#ff6b00] hover:border-[#ff6b00] hover:bg-[#ff6b00]/5 transition-all">
+                    <UserPlus size={14} /> Adicionar Decisor
+                  </button>
                 </div>
               </div>
             </div>

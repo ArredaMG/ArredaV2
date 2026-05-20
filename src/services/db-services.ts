@@ -616,7 +616,7 @@ export const createDeal = async (deal: {
   nextActionDate?: Date | null;
   lossReason?: string | null;
   notes?: string | null;
-  dealContacts?: { name: string; role: string; contact: string }[] | null;
+  dealContacts?: { id: string; name: string; role: string; contacts: { type: string; value: string }[] }[] | null;
 }) => {
   await db.insert(schema.deals).values({
     id: deal.id,
