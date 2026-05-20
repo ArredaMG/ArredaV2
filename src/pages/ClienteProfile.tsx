@@ -195,87 +195,44 @@ export const ClienteProfile: React.FC = () => {
 
       {/* ── CORPO COM LAYOUT EM GRID (flex-1) ─────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-8 py-8 pb-32">
-        <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Coluna Esquerda (1/3) - Card de Contatos e Info */}
+        <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Coluna Esquerda (1/3) */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-3">
-                <Users size={18} className="text-[#ff6b00]" />
-                <span>Informações & Contatos</span>
-              </h3>
 
-              <div className="space-y-6">
-                
-                {/* Contato Principal */}
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Contato Principal</label>
-                  {client.contactName ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">{client.contactName}</span>
-                    </div>
-                  ) : (
-                    <span className="text-zinc-400 text-xs italic">Não informado</span>
-                  )}
-                </div>
-
-                {/* Cargo */}
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Cargo do Contato</label>
-                  {client.contactRole ? (
-                    <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300 text-sm">
-                      <Briefcase size={14} className="text-zinc-400" />
-                      <span className="font-semibold">{client.contactRole}</span>
-                    </div>
-                  ) : (
-                    <span className="text-zinc-400 text-xs italic">Não informado</span>
-                  )}
-                </div>
-
-                {/* Origem do Lead */}
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Origem do Lead</label>
-                  {client.leadSource ? (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-200/30 text-xs font-bold text-[#ff6b00] dark:text-[#ff8c00]">
-                      <Info size={12} />
-                      <span>{client.leadSource}</span>
-                    </div>
-                  ) : (
-                    <span className="text-zinc-400 text-xs italic">Não informado</span>
-                  )}
-                </div>
-
-                {/* Lista de Contatos/Links */}
-                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-5">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">Canais Digitais</label>
-                  {client.contacts && client.contacts.length > 0 ? (
-                    <div className="space-y-2.5">
-                      {client.contacts.map((contact, idx) => (
-                        <a
-                          key={idx}
-                          href={getContactLink(contact.type, contact.value)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-orange-500/40 bg-zinc-50/50 dark:bg-zinc-800/20 hover:bg-orange-50/10 transition-all shadow-sm font-medium text-zinc-700 dark:text-zinc-300 text-sm"
-                        >
-                          <div className="p-2 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-800">
-                            {getContactIcon(contact.type)}
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider capitalize">{contact.type}</span>
-                            <span className="truncate text-xs font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">{contact.value}</span>
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 bg-zinc-50 dark:bg-zinc-900/30 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
-                      <span className="text-zinc-400 dark:text-zinc-600 text-xs italic">Nenhum canal cadastrado</span>
-                    </div>
-                  )}
-                </div>
-
+            {/* Card Pessoas & Contatos */}
+            <div className="bg-white dark:bg-[#1C1C1E] p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col gap-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="h-5 w-5 text-[#ff6b00]" />
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Pessoas &amp; Contatos</h2>
               </div>
+
+              {client.decisores && client.decisores.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  {client.decisores.map((decisor: any) => (
+                    <div key={decisor.id} className="bg-gray-50 dark:bg-[#2C2C2E]/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800">
+                      <div className="font-bold text-sm text-gray-900 dark:text-white">{decisor.name}</div>
+                      <div className="text-[10px] font-black uppercase tracking-wider text-[#ff6b00] mb-3">{decisor.role}</div>
+                      <div className="flex flex-col gap-2">
+                        {decisor.contacts && decisor.contacts.length > 0 ? (
+                          decisor.contacts.map((c: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1C1C1E] p-2 rounded-lg border border-gray-100 dark:border-gray-800">
+                              <span className="text-gray-400 capitalize w-20">[{c.type}]</span>
+                              <a href={c.type === 'whatsapp' ? `https://wa.me/${c.value.replace(/\D/g, '')}` : c.type === 'email' ? `mailto:${c.value}` : '#'} target="_blank" rel="noopener noreferrer" className="hover:text-[#ff6b00] transition-colors truncate">{c.value}</a>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Nenhum meio de contato registrado.</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 bg-gray-50 dark:bg-[#2C2C2E]/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                  <span className="text-sm font-medium text-gray-500">Nenhuma pessoa cadastrada nesta empresa.</span>
+                </div>
+              )}
             </div>
 
             {/* Card Metadata (Cadastro) */}

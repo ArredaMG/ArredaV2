@@ -1324,7 +1324,7 @@ export const CRM: React.FC = () => {
                             </div>
                           )}
 
-                          {/* LISTA DOS DECISORES VINCULADOS COM EDIÇÃO INLINE */}
+                          {/* LISTA DOS DECISORES VINCULADOS COM VISUALIZAÇÃO HIGIENIZADA */}
                           <div className="flex flex-col gap-3 mb-4">
                             {linkedDecisoresObjects.length === 0 ? (
                               <div className="text-center p-6 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl text-gray-400">
@@ -1332,27 +1332,13 @@ export const CRM: React.FC = () => {
                               </div>
                             ) : (
                               linkedDecisoresObjects.map((person) => (
-                                <div key={person.id} className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex flex-col gap-2 shadow-sm transition-all focus-within:border-[#ff6b00]/50">
+                                <div key={person.id} className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 p-3.5 rounded-xl flex flex-col gap-2 shadow-sm transition-all">
                                   
-                                  {/* NOME E CARGO EDITÁVEIS INLINE */}
+                                  {/* EXIBIÇÃO DE NOME E CARGO SEM EDIÇÃO INLINE */}
                                   <div className="flex items-start justify-between gap-2">
-                                    <div className="flex flex-col flex-1 gap-1">
-                                      <input 
-                                        type="text" 
-                                        defaultValue={person.name} 
-                                        onBlur={(e) => { if (e.target.value.trim() && e.target.value !== person.name) handleUpdateClientDecisor(person.id, { name: e.target.value.trim() }); }}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                                        className="font-bold text-sm bg-transparent border-none outline-none focus:ring-1 focus:ring-[#ff6b00]/30 rounded px-1 -ml-1 text-gray-900 dark:text-white placeholder-gray-400" 
-                                        placeholder="Nome do Decisor" 
-                                      />
-                                      <input 
-                                        type="text" 
-                                        defaultValue={person.role} 
-                                        onBlur={(e) => { if (e.target.value.trim() && e.target.value !== person.role) handleUpdateClientDecisor(person.id, { role: e.target.value.trim() }); }}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                                        className="text-[10px] font-black uppercase tracking-wider bg-transparent border-none outline-none focus:ring-1 focus:ring-[#ff6b00]/30 rounded px-1 -ml-1 text-[#ff6b00] placeholder-gray-400" 
-                                        placeholder="Cargo (Ex: Diretor Financeiro)" 
-                                      />
+                                    <div className="flex flex-col flex-1">
+                                      <span className="font-bold text-sm text-gray-900 dark:text-white">{person.name}</span>
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-[#ff6b00] mt-0.5">{person.role || 'Sem Cargo'}</span>
                                     </div>
                                     <button 
                                       type="button" 
@@ -1364,61 +1350,25 @@ export const CRM: React.FC = () => {
                                     </button>
                                   </div>
 
-                                  {/* LISTA DE CONTATOS DO DECISOR */}
-                                  <div className="flex flex-wrap gap-1.5 mt-1">
-                                    {person.contacts.map((c: any, cIdx: number) => (
-                                      <div key={cIdx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-300">
-                                        {getContactIcon(c.type)}
-                                        <span className="truncate max-w-[120px]">{c.value}</span>
-                                        <button 
-                                          type="button" 
-                                          onClick={() => {
-                                            const newContacts = person.contacts.filter((_, idx) => idx !== cIdx);
-                                            handleUpdateClientDecisor(person.id, { contacts: newContacts });
-                                          }} 
-                                          className="hover:text-red-500 ml-0.5 text-gray-400"
+                                  {/* LISTA DE CONTATOS DO DECISOR COMO BADGES ACIONÁVEIS */}
+                                  {person.contacts && person.contacts.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5 mt-1">
+                                      {person.contacts.map((c: any, cIdx: number) => (
+                                        <a 
+                                          key={cIdx} 
+                                          href={c.type === 'whatsapp' ? `https://wa.me/${c.value.replace(/\D/g, '')}` : c.type === 'email' ? `mailto:${c.value}` : '#'} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer" 
+                                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:text-[#ff6b00] hover:border-[#ff6b00]/30 transition-all truncate"
                                         >
-                                          <X size={10} strokeWidth={3} />
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-
-                                  {/* ADICIONAR NOVO CANAL DE CONTATO */}
-                                  <div className="flex gap-2 mt-1">
-                                    <input 
-                                      type="text" 
-                                      id={`contact-input-${person.id}`} 
-                                      placeholder="E-mail, WhatsApp, Insta..." 
-                                      onKeyDown={e => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          const val = e.currentTarget.value.trim();
-                                          if (val) {
-                                            const newContacts = [...person.contacts, { type: detectContactType(val), value: val }];
-                                            handleUpdateClientDecisor(person.id, { contacts: newContacts });
-                                            e.currentTarget.value = '';
-                                          }
-                                        }
-                                      }} 
-                                      className="flex-1 bg-gray-50 dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-lg px-2 py-1.5 text-[10px] font-medium outline-none focus:border-[#ff6b00] text-gray-800 dark:text-gray-200" 
-                                    />
-                                    <button 
-                                      type="button" 
-                                      onClick={() => {
-                                        const input = document.getElementById(`contact-input-${person.id}`) as HTMLInputElement;
-                                        const val = input.value.trim();
-                                        if (val) {
-                                          const newContacts = [...person.contacts, { type: detectContactType(val), value: val }];
-                                          handleUpdateClientDecisor(person.id, { contacts: newContacts });
-                                          input.value = '';
-                                        }
-                                      }} 
-                                      className="bg-gray-200 dark:bg-gray-700 hover:bg-[#ff6b00] hover:text-white text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors"
-                                    >
-                                      Add
-                                    </button>
-                                  </div>
+                                          {getContactIcon(c.type)}
+                                          <span className="truncate max-w-[120px]">{c.value}</span>
+                                        </a>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400 italic">Nenhum meio de contato registrado.</span>
+                                  )}
                                 </div>
                               ))
                             )}
@@ -1450,7 +1400,7 @@ export const CRM: React.FC = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Contato (E-mail, Whats, etc.)</label>
+                                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Contato (E-mail ou WhatsApp)</label>
                                   <input 
                                     type="text"
                                     value={newDecisorContact}
@@ -1470,7 +1420,7 @@ export const CRM: React.FC = () => {
                                     setNewDecisorContact('');
                                     setIsAddingNewDecisor(false);
                                   }} 
-                                  className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-colors"
+                                  className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 py-1.5 rounded-lg text-xs font-bold transition-colors"
                                 >
                                   Cancelar
                                 </button>
@@ -1506,7 +1456,7 @@ export const CRM: React.FC = () => {
                                   }} 
                                   className="flex-1 py-1.5 bg-[#ff6b00] hover:bg-[#e05e00] text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
                                 >
-                                  Criar e Vincular
+                                  Salvar &amp; Vincular
                                 </button>
                               </div>
                             </div>
