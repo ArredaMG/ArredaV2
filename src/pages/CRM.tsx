@@ -22,9 +22,11 @@ import { useAppContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import * as dbService from '../services/db-services';
 import { Pipeline, Stage, Deal, Client } from '../types';
+import { calculateFinancials } from '../lib/project-utils';
+
 
 export const CRM: React.FC = () => {
-  const { clientes, addProject, templates, refreshData, updateClient } = useAppContext();
+  const { clientes, addProject, templates, refreshData, updateClient, projects } = useAppContext();
   const navigate = useNavigate();
   
   // Local state
@@ -267,6 +269,16 @@ export const CRM: React.FC = () => {
       currency: 'BRL',
       minimumFractionDigits: 2,
     }).format(val);
+  };
+
+  const getDealValue = (deal: Deal) => {
+    if (deal.projectId) {
+      const linkedProject = projects.find(p => p.id === deal.projectId);
+      if (linkedProject) {
+        return calculateFinancials(linkedProject).total;
+      }
+    }
+    return deal.value;
   };
 
   // Drag and drop event handlers
@@ -567,8 +579,8 @@ export const CRM: React.FC = () => {
   const wonDeals = dealsList.filter(d => d.status === 'won');
   const lostDeals = dealsList.filter(d => d.status === 'lost');
   
-  const totalPipelineValue = openDeals.reduce((sum, d) => sum + d.value, 0);
-  const totalWonValue = wonDeals.reduce((sum, d) => sum + d.value, 0);
+  const totalPipelineValue = openDeals.reduce((sum, d) => sum + getDealValue(d), 0);
+  const totalWonValue = wonDeals.reduce((sum, d) => sum + getDealValue(d), 0);
   const totalCardsCount = dealsList.length;
 
   if (isLoading || isSeeding) {
@@ -712,7 +724,7 @@ export const CRM: React.FC = () => {
         <div className="flex gap-5 h-full items-start min-w-[1200px] select-none pb-4">
           {sortedStages.map(stage => {
             const stageDeals = dealsList.filter(d => d.stageId === stage.id) || [];
-            const stageTotalSum = stageDeals.reduce((sum, d) => sum + d.value, 0);
+            const stageTotalSum = stageDeals.reduce((sum, d) => sum + getDealValue(d), 0);
             const isDragTarget = draggedOverStageId === stage.id;
 
             return (
@@ -813,7 +825,7 @@ export const CRM: React.FC = () => {
                           {/* BRL Value */}
                           <div className="mt-3 flex items-center justify-between">
                             <span className="text-base font-black text-gray-800 dark:text-gray-100 tabular-nums">
-                              {deal.value > 0 ? formatCurrency(deal.value) : 'A definir'}
+                              {getDealValue(deal) > 0 ? formatCurrency(getDealValue(deal)) : 'A definir'}
                             </span>
                             
                             {/* Actions overlay visible on hover */}
