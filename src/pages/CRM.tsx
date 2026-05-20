@@ -15,7 +15,8 @@ import {
   Sparkles, 
   FolderKanban,
   Lock,
-  ExternalLink
+  ExternalLink,
+  UserPlus
 } from 'lucide-react';
 import { CreateProjectModal } from '../components/CreateProjectModal';
 import { FileText } from 'lucide-react';
@@ -23,7 +24,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAppContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import * as dbService from '../services/db-services';
-import { Pipeline, Stage, Deal, Client } from '../types';
+import { Pipeline, Stage, Deal, Client, Template } from '../types';
 import { calculateFinancials } from '../lib/project-utils';
 import { cn } from '../lib/utils';
 
@@ -64,8 +65,10 @@ export const CRM: React.FC = () => {
 
   const [dealLossReason, setDealLossReason] = useState<string>('');
   const [dealNotes, setDealNotes] = useState<string>('');
-  const [dealContactName, setDealContactName] = useState<string>('');
-  const [dealContactRole, setDealContactRole] = useState<string>('');
+  const [dealContacts, setDealContacts] = useState<{ name: string; role: string; contact: string }[]>([]);
+  const [newPersonName, setNewPersonName] = useState('');
+  const [newPersonRole, setNewPersonRole] = useState('');
+  const [newPersonContact, setNewPersonContact] = useState('');
 
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
@@ -387,8 +390,7 @@ export const CRM: React.FC = () => {
       nextActionDate,
       lossReason: dealStatus === 'lost' ? dealLossReason : null,
       notes: dealNotes,
-      dealContactName,
-      dealContactRole,
+      dealContacts: dealContacts,
     };
 
     // Optimistic insert state
@@ -449,8 +451,7 @@ export const CRM: React.FC = () => {
       clientId: dealClientId,
       lossReason: dealStatus === 'lost' ? dealLossReason : null,
       notes: dealNotes,
-      dealContactName,
-      dealContactRole,
+      dealContacts: dealContacts,
     };
 
     // Optimistic Update
@@ -567,8 +568,7 @@ export const CRM: React.FC = () => {
     setDealStatus(deal.status);
     setDealLossReason(deal.lossReason || '');
     setDealNotes(deal.notes || '');
-    setDealContactName(deal.dealContactName || '');
-    setDealContactRole(deal.dealContactRole || '');
+    setDealContacts(deal.dealContacts || []);
     
     if (deal.nextActionDate) {
       const date = new Date(deal.nextActionDate);
@@ -589,8 +589,10 @@ export const CRM: React.FC = () => {
     setDealStatus('open');
     setDealLossReason('');
     setDealNotes('');
-    setDealContactName('');
-    setDealContactRole('');
+    setDealContacts([]);
+    setNewPersonName('');
+    setNewPersonRole('');
+    setNewPersonContact('');
   };
 
   // Check if date is overdue
@@ -917,7 +919,7 @@ export const CRM: React.FC = () => {
                             {deal.title}
                           </h3>
                           {deal.status === 'lost' && deal.lossReason && (
-                            <div className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-red-500/80 bg-red-500/10 px-2 py-0.5 rounded w-fit">
+                            <div className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-red-500/80 bg-red-500/10 px-2 py-0.5 rounded w-fit border border-red-500/20">
                               <AlertCircle className="w-3 h-3" />
                               <span className="truncate max-w-[180px]">{deal.lossReason}</span>
                             </div>
@@ -1133,7 +1135,7 @@ export const CRM: React.FC = () => {
                       <ExternalLink size={12} /> Ver Orçamento
                     </button>
                   ) : (
-                    <button type="button" onClick={() => { setDealToCreateProject(editingDeal); setShowCreateProjectModal(true); setIsEditModalOpen(false); }} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest bg-[#ff6b00]/10 text-[#ff6b00] px-3 py-1.5 rounded-lg hover:bg-[#ff6b00]/20 transition-colors">
+                    <button type="button" onClick={() => { setDealToCreateProject(editingDeal); setShowCreateProjectModal(true); setIsEditModalOpen(false); }} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest bg-[#ff6b00]/10 text-[#ff6b00] px-3 py-1.5 rounded-lg hover:bg-[#ff6b00]/20 transition-colors border border-[#ff6b00]/20">
                       <FileText size={12} /> Gerar Orçamento
                     </button>
                   )}
@@ -1146,12 +1148,11 @@ export const CRM: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor Estimado (R$)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$)</label>
                     <div className="relative">
                       <input type="text" value={dealValue} onChange={(e) => setDealValue(e.target.value)} disabled={!!editingDeal.projectId} className={cn("w-full border-none rounded-xl py-3 px-4 text-sm font-semibold focus:ring-2 focus:ring-[#ff6b00]", editingDeal.projectId ? "bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed" : "bg-gray-100 dark:bg-[#2C2C2E] text-gray-900 dark:text-white")} />
-                      {editingDeal.projectId && <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />}
+                      {editingDeal.projectId && <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" title="Sincronizado com Orçamento" />}
                     </div>
-                    {editingDeal.projectId && <span className="text-[9px] text-gray-400 mt-1 block">* Valor sincronizado com a Planilha</span>}
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Próxima Ação</label>
@@ -1159,20 +1160,9 @@ export const CRM: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Contato nesta Negociação</label>
-                    <input type="text" placeholder="Ex: Juliana" value={dealContactName} onChange={(e) => setDealContactName(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Setor / Cargo</label>
-                    <input type="text" placeholder="Ex: Marketing" value={dealContactRole} onChange={(e) => setDealContactRole(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]" />
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Anotações da Negociação</label>
-                  <textarea rows={3} placeholder="Dores do cliente, briefing rápido..." value={dealNotes} onChange={(e) => setDealNotes(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00] resize-none"></textarea>
+                  <textarea rows={3} placeholder="Dores do cliente, resumo da reunião..." value={dealNotes} onChange={(e) => setDealNotes(e.target.value)} className="w-full bg-gray-100 dark:bg-[#2C2C2E] border-none text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00] resize-none"></textarea>
                 </div>
 
                 <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
@@ -1199,75 +1189,47 @@ export const CRM: React.FC = () => {
                 </div>
               </div>
 
-              {/* Lado Direito: Cliente */}
+              {/* Lado Direito: Perfil do Cliente & Contatos */}
               <div className="w-full md:w-96 bg-gray-50 dark:bg-[#1C1C1E]/50 p-6 overflow-y-auto space-y-5">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Perfil do Cliente</h3>
-                </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Empresa Vinculada *</label>
-                  <select required value={dealClientId} onChange={(e) => setDealClientId(e.target.value)} className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-transparent text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-4">Perfil da Empresa</h3>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Empresa Vinculada *</label>
+                  <select required value={dealClientId} onChange={(e) => setDealClientId(e.target.value)} className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#ff6b00]">
                     <option value="">Selecione um cliente...</option>
                     {clientes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
 
-                {dealClientId && (() => {
-                  const client = clientes.find(c => c.id === dealClientId);
-                  if (!client) return null;
-                  return (
-                    <div className="space-y-5 pt-4 border-t border-gray-200 dark:border-gray-800">
-                      {client.contactName && (
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Contato Principal</span>
-                          <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{client.contactName} {client.contactRole && <span className="text-xs font-normal text-gray-500">({client.contactRole})</span>}</span>
+                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-3">Pessoas (Decisores)</h3>
+                  <div className="flex flex-col gap-2 mb-3">
+                    {dealContacts.map((contact, idx) => (
+                      <div key={idx} className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex items-start justify-between group">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-gray-900 dark:text-white truncate">{contact.name}</span>
+                          <span className="text-[10px] text-gray-500 uppercase tracking-wider">{contact.role}</span>
+                          {contact.contact && <span className="text-xs font-mono text-[#ff6b00] mt-1">{contact.contact}</span>}
                         </div>
-                      )}
-                      
-                      <div>
-                        <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Canais de Contato</span>
-                        <div className="flex flex-col gap-2">
-                          {client.contacts?.map((c, i) => (
-                            <div key={i} className="flex items-center justify-between bg-white dark:bg-[#2C2C2E] p-1.5 pl-3 rounded-lg border border-gray-200 dark:border-transparent group/contact">
-                              <a href={getContactLink(c.type, c.value)} target="_blank" rel="noopener noreferrer" className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-[#ff6b00] transition-colors truncate">
-                                {c.value}
-                              </a>
-                              <button type="button" onClick={() => {
-                                const newContacts = client.contacts!.filter((_, index) => index !== i);
-                                updateClient(client.id, { contacts: newContacts });
-                              }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" title="Remover Contato">
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          ))}
-                          <div className="flex gap-2 mt-2">
-                            <input type="text" id="quickContactInput" placeholder="Adicionar número, e-mail..." className="flex-1 bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-transparent rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-[#ff6b00]" onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                const val = e.currentTarget.value.trim();
-                                if (val) {
-                                  const newContacts = [...(client.contacts || []), { type: 'website', value: val }];
-                                  updateClient(client.id, { contacts: newContacts });
-                                  e.currentTarget.value = '';
-                                }
-                              }
-                            }}/>
-                            <button type="button" onClick={() => {
-                              const input = document.getElementById('quickContactInput') as HTMLInputElement;
-                              const val = input.value.trim();
-                              if (val) {
-                                const newContacts = [...(client.contacts || []), { type: 'website', value: val }];
-                                updateClient(client.id, { contacts: newContacts });
-                                input.value = '';
-                              }
-                            }} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 py-2 rounded-lg text-xs font-bold transition-colors">Add</button>
-                          </div>
-                        </div>
+                        <button type="button" onClick={() => setDealContacts(prev => prev.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 p-1 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
                       </div>
+                    ))}
+                    {dealContacts.length === 0 && <span className="text-xs text-gray-400 italic">Nenhuma pessoa adicionada a esta negociação.</span>}
+                  </div>
+
+                  {/* Form Adicionar Pessoa */}
+                  <div className="bg-gray-100 dark:bg-[#252529] p-3 rounded-xl flex flex-col gap-2 border border-dashed border-gray-300 dark:border-gray-700">
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="Nome" value={newPersonName} onChange={e => setNewPersonName(e.target.value)} className="w-1/2 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs outline-none" />
+                      <input type="text" placeholder="Cargo" value={newPersonRole} onChange={e => setNewPersonRole(e.target.value)} className="w-1/2 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs outline-none" />
                     </div>
-                  );
-                })()}
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="E-mail ou WhatsApp" value={newPersonContact} onChange={e => setNewPersonContact(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newPersonName) { setDealContacts(prev => [...prev, { name: newPersonName, role: newPersonRole, contact: newPersonContact }]); setNewPersonName(''); setNewPersonRole(''); setNewPersonContact(''); }}}} className="flex-1 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs outline-none" />
+                      <button type="button" onClick={() => { if (newPersonName) { setDealContacts(prev => [...prev, { name: newPersonName, role: newPersonRole, contact: newPersonContact }]); setNewPersonName(''); setNewPersonRole(''); setNewPersonContact(''); }}} className="bg-gray-200 dark:bg-gray-700 hover:bg-[#ff6b00] hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">Add</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

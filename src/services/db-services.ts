@@ -616,8 +616,7 @@ export const createDeal = async (deal: {
   nextActionDate?: Date | null;
   lossReason?: string | null;
   notes?: string | null;
-  dealContactName?: string | null;
-  dealContactRole?: string | null;
+  dealContacts?: { name: string; role: string; contact: string }[] | null;
 }) => {
   await db.insert(schema.deals).values({
     id: deal.id,
@@ -631,8 +630,7 @@ export const createDeal = async (deal: {
     nextActionDate: deal.nextActionDate,
     lossReason: deal.lossReason ?? null,
     notes: deal.notes ?? null,
-    dealContactName: deal.dealContactName ?? null,
-    dealContactRole: deal.dealContactRole ?? null,
+    dealContacts: deal.dealContacts ?? [],
   });
 };
 
@@ -650,8 +648,7 @@ export const updateDeal = async (dealId: string, updates: Partial<Deal>) => {
   }
   if ('lossReason' in updates) dbUpdates.lossReason = updates.lossReason ?? null;
   if ('notes' in updates) dbUpdates.notes = updates.notes ?? null;
-  if ('dealContactName' in updates) dbUpdates.dealContactName = updates.dealContactName ?? null;
-  if ('dealContactRole' in updates) dbUpdates.dealContactRole = updates.dealContactRole ?? null;
+  if ('dealContacts' in updates) dbUpdates.dealContacts = updates.dealContacts ?? [];
   dbUpdates.updatedAt = new Date();
   await db.update(schema.deals).set(dbUpdates).where(eq(schema.deals.id, dealId));
 };

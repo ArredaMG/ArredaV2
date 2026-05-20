@@ -125,8 +125,7 @@ export interface Deal {
   nextActionDate?: string | Date | null;
   lossReason?: string | null;
   notes?: string | null;
-  dealContactName?: string | null;
-  dealContactRole?: string | null;
+  dealContacts?: { name: string; role: string; contact: string }[] | null;
   createdAt?: string | Date;
   updatedAt?: string | Date;
   client?: Client;
