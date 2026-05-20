@@ -245,6 +245,7 @@ export const Recursos: React.FC = () => {
       contactRole: null,
       leadSource: null,
       contacts: newClientTempContacts,
+      decisores: [],
     });
 
     setIsClientModalOpen(false);

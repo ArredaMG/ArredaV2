@@ -422,7 +422,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addClient = async (client: Omit<Client, 'id'>) => {
     const previousClients = [...clientes];
     const id = uuidv4();
-    const newClient = { ...client, id };
+    const newClient = { ...client, id, decisores: client.decisores ?? [] };
     
     setClientes(prev => [...prev, newClient]);
     
