@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getItemMetrics, calculateProjectTotals, getGroupMetrics } from '../lib/calculations';
 import { PropostaModal } from '../components/PropostaModal';
 import { CostGroupTable, FinancialPanels } from '../components/planilha';
+import { updateDealByProjectId } from '../services/db-services';
 export const Planilha: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -214,6 +215,7 @@ export const Planilha: React.FC = () => {
   // Refs para acessar estado mais recente dentro de callbacks assíncronos
   const projectRef = useRef<Project | null>(null);
   const activeVersionIdRef = useRef<string | null>(null);
+  const totalClientRef = useRef(0);
   projectRef.current = project;
   activeVersionIdRef.current = activeVersionId;
 
@@ -235,9 +237,17 @@ export const Planilha: React.FC = () => {
           recordingDates: currentProject.recordingDates,
           startDate: currentProject.startDate,
           endDate: currentProject.endDate,
-          dealValue: globals.totalClient,
         },
       });
+
+      try {
+        const token = await getToken();
+        if (token) {
+          await updateDealByProjectId(currentProject.id, { value: totalClientRef.current }, token);
+        }
+      } catch (err) {
+        console.error('Erro ao sincronizar valor do deal:', err);
+      }
 
       if (currentVersionId) {
         const activeVer = currentProject.versions.find(v => v.id === currentVersionId);
@@ -258,7 +268,7 @@ export const Planilha: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [updateProjectMutation, updateVersionMutation]);
+  }, [updateProjectMutation, updateVersionMutation, getToken]);
 
   // Botão manual: sempre força o salvamento
   const saveProject = useCallback(() => _persist(), [_persist]);
@@ -350,6 +360,8 @@ export const Planilha: React.FC = () => {
       lucroReal: totals.lucroReal 
     };
   }, [activeVersion]);
+
+  totalClientRef.current = globals.totalClient;
 
   // ── MÉTRICAS DE SAÚde FINANCEIRA (só relevante em modo de execução) ──
   const healthMetrics = useMemo(() => {

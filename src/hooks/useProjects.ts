@@ -22,10 +22,15 @@ export const projectKeys = {
   version: (versionId: string) => ['project-version', versionId] as const,
 };
 
-export type CreateProjectInput = Omit<Project, 'id' | 'versions'> & {
+export type CreateProjectInput = Omit<
+  Project,
+  'id' | 'versions' | 'createdAt' | 'projectNumber' | 'recordingDates'
+> & {
   defaultTax: number;
   defaultMargin: number;
   groups: CostGroup[];
+  /** Opcional — o hook gera projectNumber e createdAt no servidor */
+  recordingDates?: string[];
 };
 
 async function resolveToken(getToken: ReturnType<typeof useAuth>['getToken']) {
