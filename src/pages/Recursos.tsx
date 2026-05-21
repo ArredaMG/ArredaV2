@@ -76,19 +76,6 @@ export const Recursos: React.FC = () => {
     void queryClient.invalidateQueries({ queryKey: resourceKeys.templates });
   };
 
-  if (isLoading) {
-    return <LoadingSpinner label="Carregando recursos..." />;
-  }
-
-  if (isError) {
-    return (
-      <ErrorPanel
-        message="Não conseguimos carregar projetos, clientes ou cadastros. Verifique sua conexão e tente novamente."
-        onRetry={handleRetry}
-      />
-    );
-  }
-
   const { openModal } = useModal();
   const navigate = useNavigate();
   
@@ -393,6 +380,19 @@ export const Recursos: React.FC = () => {
       default: return 'Buscar...';
     }
   };
+
+  if (isLoading) {
+    return <LoadingSpinner label="Carregando recursos..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorPanel
+        message="Não conseguimos carregar projetos, clientes ou cadastros. Verifique sua conexão e tente novamente."
+        onRetry={handleRetry}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#F5F5F7] dark:bg-[#000000] overflow-hidden">

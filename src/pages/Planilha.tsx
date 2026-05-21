@@ -69,18 +69,6 @@ export const Planilha: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return <LoadingSpinner label="Carregando planilha..." />;
-  }
-
-  if (isError) {
-    return (
-      <ErrorPanel
-        message="Não conseguimos carregar os dados desta planilha. Verifique sua conexão e tente novamente."
-        onRetry={handleRetry}
-      />
-    );
-  }
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [expandedPriceRows, setExpandedPriceRows] = useState<Set<string>>(new Set());
   const [isDirty, setIsDirty] = useState(false);
@@ -608,7 +596,20 @@ export const Planilha: React.FC = () => {
     });
   };
 
-  const showFinancialControl = project.status === 'Aprovado' || project.status === 'Concluído';
+  if (isLoading) {
+    return <LoadingSpinner label="Carregando planilha..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorPanel
+        message="Não conseguimos carregar os dados desta planilha. Verifique sua conexão e tente novamente."
+        onRetry={handleRetry}
+      />
+    );
+  }
+
+  const showFinancialControl = project?.status === 'Aprovado' || project?.status === 'Concluído';
 
   return (
     <div className="flex flex-col h-full bg-[#F5F5F7] dark:bg-[#000000] printable-area overflow-hidden">

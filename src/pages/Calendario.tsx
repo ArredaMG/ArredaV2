@@ -8,19 +8,6 @@ export const Calendario: React.FC = () => {
   const { projects = [], isLoading, isError, refetchProjects } = useProjects();
   const navigate = useNavigate();
 
-  if (isLoading) {
-    return <LoadingSpinner label="Carregando calendário..." />;
-  }
-
-  if (isError) {
-    return (
-      <ErrorPanel
-        message="Não conseguimos carregar os projetos para o calendário. Verifique sua conexão e tente novamente."
-        onRetry={() => void refetchProjects()}
-      />
-    );
-  }
-
   const [currentDate, setCurrentDate] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
@@ -75,6 +62,19 @@ export const Calendario: React.FC = () => {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  if (isLoading) {
+    return <LoadingSpinner label="Carregando calendário..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorPanel
+        message="Não conseguimos carregar os projetos para o calendário. Verifique sua conexão e tente novamente."
+        onRetry={() => void refetchProjects()}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#F5F5F7] dark:bg-[#000000]">

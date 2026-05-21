@@ -37,18 +37,6 @@ export const Dashboard: React.FC = () => {
     void queryClient.invalidateQueries({ queryKey: resourceKeys.templates });
   };
 
-  if (isLoading) {
-    return <LoadingSpinner label="Carregando projetos..." />;
-  }
-
-  if (isError) {
-    return (
-      <ErrorPanel
-        message="Não conseguimos carregar seus projetos ou templates. Verifique sua conexão e tente novamente."
-        onRetry={handleRetry}
-      />
-    );
-  }
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [filterStatus, setFilterStatus] = useState<'Todos' | 'Pendente' | 'Aprovado' | 'Concluído'>('Todos');
 
@@ -209,6 +197,19 @@ export const Dashboard: React.FC = () => {
       </div>
     );
   };
+
+  if (isLoading) {
+    return <LoadingSpinner label="Carregando projetos..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorPanel
+        message="Não conseguimos carregar seus projetos ou templates. Verifique sua conexão e tente novamente."
+        onRetry={handleRetry}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#F5F5F7] dark:bg-[#000000] overflow-hidden font-sans">
