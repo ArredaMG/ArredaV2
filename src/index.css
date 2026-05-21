@@ -9,7 +9,7 @@
   --text-muted: #86868B;
   --border-color: #E5E5EA;
   --primary: #AE0000;
-  --primary-hover: #9B0000;
+  --primary-hover: #8B0000;
   --input-bg: #F9F9F9;
   --zebra-bg: #F9F9F9;
   --hover-bg: rgba(174, 0, 0, 0.05);
@@ -115,3 +115,4 @@ dialog::backdrop {
 }
 
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+

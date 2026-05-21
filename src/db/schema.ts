@@ -150,3 +150,4 @@ export const dealsRelations = relations(deals, ({ one }) => ({
   stage: one(stages, { fields: [deals.stageId], references: [stages.id] }),
 }));
 
+

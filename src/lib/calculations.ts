@@ -137,3 +137,4 @@ export function calculateProjectTotals(version: ProjectVersion): VersionTotals {
     lucroReal: subtotal - totalExecuted
   };
 }
+

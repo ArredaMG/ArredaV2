@@ -31,3 +31,4 @@ export const uploadToDrive = async (file: File, folderId?: string) => {
   console.log(`Fazendo upload do arquivo ${file.name} para a pasta ${folderId || 'raiz'}`);
   // Implementação futura do upload via Google Drive API
 };
+

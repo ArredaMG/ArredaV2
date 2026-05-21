@@ -82,3 +82,4 @@ export const useModal = () => {
   if (!context) throw new Error('useModal must be used within ModalProvider');
   return context;
 };
+

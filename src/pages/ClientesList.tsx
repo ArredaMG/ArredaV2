@@ -160,7 +160,7 @@ export const ClientesList: React.FC = () => {
 
             <button 
               onClick={handleOpenModal}
-              className="flex items-center gap-2 bg-[#ff6b00] hover:bg-[#ff8c00] text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 shrink-0"
+              className="flex items-center gap-2 bg-[#AE0000] hover:bg-[#AE0000] text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 shrink-0"
             >
               <Plus size={20} strokeWidth={3} />
               <span>Novo Cliente</span>
@@ -197,7 +197,7 @@ export const ClientesList: React.FC = () => {
                             <Users size={20} />
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#ff6b00] transition-colors">{c.name}</span>
+                            <span className="font-bold text-gray-900 dark:text-white group-hover:text-[#AE0000] transition-colors">{c.name}</span>
                             {c.document && <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 mt-0.5">{c.document}</span>}
                           </div>
                         </div>
@@ -237,7 +237,7 @@ export const ClientesList: React.FC = () => {
                         <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0" onClick={e => e.stopPropagation()}>
                           <button 
                             onClick={() => navigate(`/clientes/${c.id}`)}
-                            className="p-2 text-zinc-600 hover:text-[#ff6b00] hover:bg-orange-50 dark:text-zinc-400 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            className="p-2 text-zinc-600 hover:text-[#AE0000] hover:bg-orange-50 dark:text-zinc-400 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                             title="Acessar Perfil"
                           >
                             <ArrowRight size={16} />
@@ -260,7 +260,7 @@ export const ClientesList: React.FC = () => {
                           <span className="text-4xl grayscale opacity-50 mb-2">👥</span>
                           <p className="text-zinc-500 font-medium">Nenhum cliente cadastrado.</p>
                           {searchQuery && (
-                            <button onClick={() => setSearchQuery('')} className="text-[#ff6b00] font-bold text-sm hover:underline">Limpar busca</button>
+                            <button onClick={() => setSearchQuery('')} className="text-[#AE0000] font-bold text-sm hover:underline">Limpar busca</button>
                           )}
                         </div>
                       </td>
@@ -388,7 +388,7 @@ export const ClientesList: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!name.trim()}
-                  className="bg-[#ff6b00] hover:bg-[#ff8c00] disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 text-sm"
+                  className="bg-[#AE0000] hover:bg-[#AE0000] disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95 text-sm"
                 >
                   Salvar Cliente
                 </button>
@@ -400,3 +400,4 @@ export const ClientesList: React.FC = () => {
     </div>
   );
 };
+

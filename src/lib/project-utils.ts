@@ -20,3 +20,4 @@ export const calculateFinancials = (project: Project) => {
     dates: project.recordingDates || []
   };
 };
+

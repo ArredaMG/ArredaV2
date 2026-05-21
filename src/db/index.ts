@@ -6,3 +6,4 @@ const connectionString = import.meta.env.VITE_DATABASE_URL || '';
 const pool = new Pool({ connectionString });
 
 export const db = drizzle(pool, { schema });
+

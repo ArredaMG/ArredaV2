@@ -11,7 +11,7 @@ import { Calendario } from './pages/Calendario';
 import { ClienteProfile } from './pages/ClienteProfile';
 import { CRM } from './pages/CRM';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { Login } from './pages/Login';
+
 
 const router = createBrowserRouter([
   {
@@ -51,3 +51,4 @@ export default function App() {
     </AppProvider>
   );
 }
+

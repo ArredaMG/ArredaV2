@@ -70,3 +70,4 @@ describe('Cálculos Financeiros de Orçamentos', () => {
     expect(result.totalProfit).toBeCloseTo(200.00, 2);
   });
 });
+

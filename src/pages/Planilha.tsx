@@ -554,7 +554,7 @@ export const Planilha: React.FC = () => {
                     value={templateName}
                     onChange={(e) => setTemplateName(e.target.value)}
                     placeholder="Nome do Template"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-6 focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 focus:outline-none transition-all font-medium text-sm text-zinc-800 dark:text-zinc-150"
+                    className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-6 focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 focus:outline-none transition-all font-medium text-sm text-zinc-800 dark:text-zinc-150"
                     autoFocus
                   />
                   <div className="flex justify-end gap-3">
@@ -577,7 +577,7 @@ export const Planilha: React.FC = () => {
                           alert("Por favor, digite um nome para o template.");
                         }
                       }}
-                      className="bg-[#ff6b00] text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#e55e00] transition-colors shadow-lg shadow-orange-500/20"
+                      className="bg-[#AE0000] text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#e55e00] transition-colors shadow-lg shadow-orange-500/20"
                     >
                       Salvar
                     </button>
@@ -648,7 +648,7 @@ export const Planilha: React.FC = () => {
                 className={cn(
                   "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm",
                   activeVersionId === v.id
-                    ? "bg-[#ff6b00] text-white border-[#ff6b00] shadow-md shadow-orange-500/20"
+                    ? "bg-[#AE0000] text-white border-[#AE0000] shadow-md shadow-orange-500/20"
                     : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
                 )}
               >
@@ -662,7 +662,7 @@ export const Planilha: React.FC = () => {
                   setActiveVersionId(newProj.versions[newProj.versions.length - 1].id);
                 }
               }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-800 text-[#ff6b00] hover:bg-[#ff6b00]/10 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-zinc-50 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-800 text-[#AE0000] hover:bg-[#AE0000]/10 transition-colors whitespace-nowrap"
             >
               <Plus size={12} strokeWidth={3} /> Nova Versão
             </button>
@@ -676,7 +676,7 @@ export const Planilha: React.FC = () => {
               className="w-full flex flex-col md:flex-row md:items-center justify-between p-5 hover:bg-zinc-50 dark:hover:bg-zinc-800/10 transition-all text-left print:hidden focus:outline-none"
             >
               <div className="flex items-center gap-3">
-                <div className="text-[#ff6b00] p-1.5 rounded-lg bg-orange-500/10 dark:bg-orange-500/5 transition-transform duration-200">
+                <div className="text-[#AE0000] p-1.5 rounded-lg bg-orange-500/10 dark:bg-orange-500/5 transition-transform duration-200">
                   <motion.div
                     animate={{ rotate: isGeneralInfoExpanded ? 90 : 0 }}
                     transition={{ duration: 0.2 }}
@@ -691,7 +691,7 @@ export const Planilha: React.FC = () => {
 
               {!isGeneralInfoExpanded && (
                 <div className="mt-2 md:mt-0 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-1.5 rounded-xl border border-zinc-150 dark:border-zinc-800/80 tabular-nums uppercase tracking-widest flex flex-wrap gap-x-2 gap-y-1">
-                  <span>ID: <span className="font-bold text-[#ff6b00]">{new Date(project.createdAt || new Date()).getFullYear()}-{project.projectNumber || '—'}</span></span>
+                  <span>ID: <span className="font-bold text-[#AE0000]">{new Date(project.createdAt || new Date()).getFullYear()}-{project.projectNumber || '—'}</span></span>
                   <span className="text-zinc-300 dark:text-zinc-700">|</span>
                   <span>Status: <span className="font-bold text-zinc-700 dark:text-zinc-300">{project.status}</span></span>
                   <span className="text-zinc-300 dark:text-zinc-700">|</span>
@@ -734,13 +734,13 @@ export const Planilha: React.FC = () => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">ID Orçamento</label>
-                          <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 rounded-xl px-3 py-1.5 border border-zinc-200 dark:border-zinc-800 focus-within:border-[#ff6b00] focus-within:ring-2 focus-within:ring-[#ff6b00]/20 transition-all duration-200">
+                          <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 rounded-xl px-3 py-1.5 border border-zinc-200 dark:border-zinc-800 focus-within:border-[#AE0000] focus-within:ring-2 focus-within:ring-[#AE0000]/20 transition-all duration-200">
                             <span className="text-zinc-400 font-mono text-xs font-bold mr-1">{new Date(project.createdAt || new Date()).getFullYear()}-</span>
                             <input
                               type="number"
                               value={project.projectNumber || ''}
                               onChange={e => handleProjectUpdate({ projectNumber: Number(e.target.value) })}
-                              className="w-full bg-transparent border-none outline-none font-mono text-xs font-bold text-[#ff6b00]"
+                              className="w-full bg-transparent border-none outline-none font-mono text-xs font-bold text-[#AE0000]"
                             />
                           </div>
                         </div>
@@ -749,7 +749,7 @@ export const Planilha: React.FC = () => {
                           <select
                             value={project.status}
                             onChange={e => handleProjectUpdate({ status: e.target.value as any })}
-                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
+                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
                           >
                             <option value="Pendente">Pendente</option>
                             <option value="Aprovado">Aprovado</option>
@@ -765,7 +765,7 @@ export const Planilha: React.FC = () => {
                             type="text"
                             value={project.title}
                             onChange={e => handleProjectUpdate({ title: e.target.value })}
-                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-zinc-900 dark:text-white"
+                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 transition-all duration-200 font-bold text-xs text-zinc-900 dark:text-white"
                           />
                         </div>
                         <div>
@@ -775,7 +775,7 @@ export const Planilha: React.FC = () => {
                             list="lista-clientes"
                             value={project.client}
                             onChange={e => handleProjectUpdate({ client: e.target.value })}
-                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-[#ff6b00]"
+                            className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 transition-all duration-200 font-bold text-xs text-[#AE0000]"
                           />
                         </div>
                       </div>
@@ -786,7 +786,7 @@ export const Planilha: React.FC = () => {
                       <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-1.5">
                         <h3 className="text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 tracking-widest">Cronograma</h3>
                         {(project.recordingDates && project.recordingDates.length > 0) || (project.startDate && project.endDate) ? (
-                          <span className="text-[9px] font-black bg-[#ff6b00]/10 text-[#ff6b00] px-2.5 py-0.5 rounded-full font-mono tracking-tighter">
+                          <span className="text-[9px] font-black bg-[#AE0000]/10 text-[#AE0000] px-2.5 py-0.5 rounded-full font-mono tracking-tighter">
                             DURAÇÃO: {project.recordingDates?.length > 0 ? project.recordingDates.length : Math.ceil((new Date(project.endDate!).getTime() - new Date(project.startDate!).getTime()) / (1000 * 60 * 60 * 24)) + 1} DIAS
                           </span>
                         ) : null}
@@ -798,7 +798,7 @@ export const Planilha: React.FC = () => {
                           type="date"
                           value={activeVersion.date}
                           onChange={e => handleVersionUpdate({ date: e.target.value })}
-                          className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
+                          className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
                         />
                       </div>
 
@@ -809,7 +809,7 @@ export const Planilha: React.FC = () => {
                             type="date"
                             value={newDate}
                             onChange={e => setNewDate(e.target.value)}
-                            className="flex-1 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
+                            className="flex-1 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 outline-none focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 transition-all duration-200 font-bold text-xs text-zinc-700 dark:text-zinc-200"
                           />
                           <button
                             type="button"
@@ -819,7 +819,7 @@ export const Planilha: React.FC = () => {
                                 setNewDate('');
                               }
                             }}
-                            className="bg-[#ff6b00]/10 text-[#ff6b00] border border-[#ff6b00]/20 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-[#ff6b00] hover:text-white transition-colors flex items-center justify-center whitespace-nowrap"
+                            className="bg-[#AE0000]/10 text-[#AE0000] border border-[#AE0000]/20 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-[#AE0000] hover:text-white transition-colors flex items-center justify-center whitespace-nowrap"
                             title="Adicionar Diária"
                           >
                             <Plus size={14} strokeWidth={3} className="mr-1" /> Adicionar
@@ -833,14 +833,14 @@ export const Planilha: React.FC = () => {
                             const [year, month, day] = dateStr.split('-');
                             const formattedDate = `${day}/${month}`;
                             return (
-                              <div key={dateStr} className="flex items-center gap-1 bg-[#ff6b00]/10 text-[#ff6b00] border border-[#ff6b00]/20 rounded-full pl-2 pr-1 py-0.5 text-[10px] font-bold font-mono">
+                              <div key={dateStr} className="flex items-center gap-1 bg-[#AE0000]/10 text-[#AE0000] border border-[#AE0000]/20 rounded-full pl-2 pr-1 py-0.5 text-[10px] font-bold font-mono">
                                 <span>{formattedDate}</span>
                                 <button
                                   type="button"
                                   onClick={() => {
                                     handleProjectUpdate({ recordingDates: project.recordingDates.filter(d => d !== dateStr) });
                                   }}
-                                  className="hover:bg-[#ff6b00]/20 rounded-full p-0.5 transition-colors"
+                                  className="hover:bg-[#AE0000]/20 rounded-full p-0.5 transition-colors"
                                 >
                                   <X size={10} strokeWidth={3} />
                                 </button>
@@ -857,7 +857,7 @@ export const Planilha: React.FC = () => {
                       
                       <div>
                         <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Margem Padrão</label>
-                        <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 focus-within:border-[#ff6b00] focus-within:ring-2 focus-within:ring-[#ff6b00]/20 transition-all duration-200">
+                        <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 focus-within:border-[#AE0000] focus-within:ring-2 focus-within:ring-[#AE0000]/20 transition-all duration-200">
                           <input
                             type="number"
                             step="0.01"
@@ -874,7 +874,7 @@ export const Planilha: React.FC = () => {
 
                       <div>
                         <label className="block text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-550 mb-0.5 tracking-widest">Imposto / NF</label>
-                        <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 focus-within:border-[#ff6b00] focus-within:ring-2 focus-within:ring-[#ff6b00]/20 transition-all duration-200">
+                        <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 focus-within:border-[#AE0000] focus-within:ring-2 focus-within:ring-[#AE0000]/20 transition-all duration-200">
                           <input
                             type="number"
                             step="0.01"
@@ -899,14 +899,14 @@ export const Planilha: React.FC = () => {
         
         {isVersionLoading ? (
           <div className="flex flex-col items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-zinc-200 border-t-[#ff6b00]"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-zinc-200 border-t-[#AE0000]"></div>
             <p className="mt-4 text-sm font-medium text-zinc-500 animate-pulse">Carregando dados do projeto...</p>
           </div>
         ) : activeVersion.groups.length === 0 ? (
           <div className="bg-white dark:bg-zinc-900 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl p-20 text-center">
             <div className="text-4xl mb-4 grayscale opacity-40">📝</div>
             <p className="text-zinc-500 font-medium mb-6">Este orçamento ainda está vazio.</p>
-            <button onClick={handleAddGroup} className="bg-[#ff6b00] text-white px-6 py-3 rounded-xl font-bold inline-flex items-center gap-2 shadow-lg shadow-orange-500/20 active:scale-95 transition-all">
+            <button onClick={handleAddGroup} className="bg-[#AE0000] text-white px-6 py-3 rounded-xl font-bold inline-flex items-center gap-2 shadow-lg shadow-orange-500/20 active:scale-95 transition-all">
               <Plus size={20} strokeWidth={3} /> Começar Orçamento
             </button>
           </div>
@@ -954,7 +954,7 @@ export const Planilha: React.FC = () => {
                             });
                           }}
                           onClick={e => e.preventDefault()}
-                          className="font-black text-lg bg-transparent border-none outline-none focus:text-[#ff6b00] rounded px-1 transition-all disabled:cursor-not-allowed uppercase tracking-tight"
+                          className="font-black text-lg bg-transparent border-none outline-none focus:text-[#AE0000] rounded px-1 transition-all disabled:cursor-not-allowed uppercase tracking-tight"
                         />
                         
                         <div className="flex items-center gap-2 overflow-x-auto">
@@ -1063,7 +1063,7 @@ export const Planilha: React.FC = () => {
                                       list="lista-banco-cargos"
                                       value={item.role || ''} 
                                       onChange={e => handleUpdateItem(group.id, item.id, { role: e.target.value })} 
-                                      className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-3 py-1.5 outline-none font-bold text-xs text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 transition-all" 
+                                      className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 rounded-lg px-3 py-1.5 outline-none font-bold text-xs text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 transition-all" 
                                       placeholder="Diretor de Arte..." 
                                     />
                                 </td>
@@ -1083,7 +1083,7 @@ export const Planilha: React.FC = () => {
                                           list={`lista-banco-recursos-${item.id}`}
                                           value={item.name}
                                           onChange={e => handleUpdateItem(group.id, item.id, { name: e.target.value })}
-                                          className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-3 py-1.5 outline-none font-bold text-xs text-zinc-900 dark:text-white transition-all"
+                                          className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 rounded-lg px-3 py-1.5 outline-none font-bold text-xs text-zinc-900 dark:text-white transition-all"
                                           placeholder="Nome ou Empresa..."
                                         />
                                         <datalist id={`lista-banco-recursos-${item.id}`}>
@@ -1113,7 +1113,7 @@ export const Planilha: React.FC = () => {
                                       type="number" 
                                       value={item.unitCost || ''} 
                                       onChange={e => handleUpdateItem(group.id, item.id, { unitCost: Number(e.target.value) })} 
-                                      className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-3 py-1.5 outline-none text-right font-mono text-xs font-bold text-zinc-500 dark:text-zinc-400 tabular-nums transition-all" 
+                                      className="w-full bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 rounded-lg px-3 py-1.5 outline-none text-right font-mono text-xs font-bold text-zinc-500 dark:text-zinc-400 tabular-nums transition-all" 
                                       placeholder="0.00" 
                                     />
                                 </td>
@@ -1123,7 +1123,7 @@ export const Planilha: React.FC = () => {
                                     min="1" 
                                     value={item.quantity || 1} 
                                     onChange={e => handleUpdateItem(group.id, item.id, { quantity: Number(e.target.value) })} 
-                                    className="w-16 mx-auto bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-2 py-1.5 outline-none text-center font-mono text-xs font-bold tabular-nums transition-all" 
+                                    className="w-16 mx-auto bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 rounded-lg px-2 py-1.5 outline-none text-center font-mono text-xs font-bold tabular-nums transition-all" 
                                   />
                                 </td>
                                 <td className="py-3 px-4 text-center">
@@ -1132,13 +1132,13 @@ export const Planilha: React.FC = () => {
                                     min="1" 
                                     value={item.days || 1} 
                                     onChange={e => handleUpdateItem(group.id, item.id, { days: Number(e.target.value) })} 
-                                    className="w-16 mx-auto bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20 rounded-lg px-2 py-1.5 outline-none text-center font-mono text-xs font-bold tabular-nums transition-all" 
+                                    className="w-16 mx-auto bg-zinc-50 dark:bg-zinc-800/40 border border-transparent focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20 rounded-lg px-2 py-1.5 outline-none text-center font-mono text-xs font-bold tabular-nums transition-all" 
                                   />
                                 </td>
                                 <td className="py-3 px-4 text-right font-black text-zinc-900 dark:text-white whitespace-nowrap">
                                   <div className="flex items-center justify-end gap-2">
                                     <span className="font-mono tabular-nums">{formatCurrency(metrics.totalFinal)}</span>
-                                    <button onClick={() => togglePriceRow(item.id)} className={cn("p-1 rounded transition-colors", expandedPriceRows.has(item.id) ? "text-[#ff6b00]" : "text-zinc-300 hover:text-zinc-500")}>
+                                    <button onClick={() => togglePriceRow(item.id)} className={cn("p-1 rounded transition-colors", expandedPriceRows.has(item.id) ? "text-[#AE0000]" : "text-zinc-300 hover:text-zinc-500")}>
                                       <Info size={14} />
                                     </button>
                                   </div>
@@ -1164,7 +1164,7 @@ export const Planilha: React.FC = () => {
                                                 "w-full rounded-lg py-1 px-2 text-right font-mono text-xs font-bold tabular-nums outline-none transition-all",
                                                 isOverbudget
                                                   ? "bg-red-50/50 dark:bg-red-950/10 border border-red-300 dark:border-red-900/50 text-red-700 dark:text-red-400 focus:ring-2 focus:ring-red-500/20"
-                                                  : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white focus:border-[#ff6b00] focus:ring-2 focus:ring-[#ff6b00]/20"
+                                                  : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white focus:border-[#AE0000] focus:ring-2 focus:ring-[#AE0000]/20"
                                               )} 
                                               placeholder="0.00" 
                                             />
@@ -1177,7 +1177,7 @@ export const Planilha: React.FC = () => {
                                         <div className="flex items-center justify-center gap-2">
                                           {uploadingItemIds.has(item.id) ? (
                                             <div className="flex items-center gap-2">
-                                              <Loader2 size={18} className="animate-spin text-[#ff6b00]" />
+                                              <Loader2 size={18} className="animate-spin text-[#AE0000]" />
                                               <span className="text-[10px] font-bold text-zinc-400 animate-pulse">UPLOADING...</span>
                                             </div>
                                           ) : item.receiptLink ? (
@@ -1212,7 +1212,7 @@ export const Planilha: React.FC = () => {
                                               />
                                               <label
                                                 htmlFor={`file-upload-${item.id}`}
-                                                className="p-1.5 text-zinc-400 hover:text-[#ff6b00] hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg cursor-pointer transition-colors"
+                                                className="p-1.5 text-zinc-400 hover:text-[#AE0000] hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg cursor-pointer transition-colors"
                                                 title="Anexar comprovante"
                                               >
                                                 <Paperclip size={18} />
@@ -1281,7 +1281,7 @@ export const Planilha: React.FC = () => {
                       </table>
                     </div>
                     <div className="p-4 border-t border-zinc-50 dark:border-zinc-900 bg-zinc-50/30 dark:bg-zinc-950/10">
-                      <button onClick={() => handleAddItem(group.id)} className="text-xs font-black uppercase tracking-widest text-[#ff6b00] hover:text-[#ff8c00] flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-orange-50 dark:hover:bg-orange-950/20">
+                      <button onClick={() => handleAddItem(group.id)} className="text-xs font-black uppercase tracking-widest text-[#AE0000] hover:text-[#AE0000] flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-orange-50 dark:hover:bg-orange-950/20">
                         <Plus size={16} strokeWidth={3} /> Adicionar Item
                       </button>
                     </div>
@@ -1290,12 +1290,12 @@ export const Planilha: React.FC = () => {
             })}
             
             <div className="mt-10 flex justify-center pb-20">
-              <button onClick={handleAddGroup} className="group flex items-center gap-3 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 hover:border-[#ff6b00] px-8 py-4 rounded-2xl transition-all shadow-sm hover:shadow-xl active:scale-95">
-                <div className="w-10 h-10 rounded-xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:bg-[#ff6b00] group-hover:text-white transition-all">
+              <button onClick={handleAddGroup} className="group flex items-center gap-3 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 hover:border-[#AE0000] px-8 py-4 rounded-2xl transition-all shadow-sm hover:shadow-xl active:scale-95">
+                <div className="w-10 h-10 rounded-xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:bg-[#AE0000] group-hover:text-white transition-all">
                   <Plus size={24} strokeWidth={3} />
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="font-black text-sm uppercase tracking-widest text-zinc-600 dark:text-zinc-300 group-hover:text-[#ff6b00] transition-colors">Nova Categoria</span>
+                  <span className="font-black text-sm uppercase tracking-widest text-zinc-600 dark:text-zinc-300 group-hover:text-[#AE0000] transition-colors">Nova Categoria</span>
                   <span className="text-[10px] text-zinc-400 font-medium">Divida seu orçamento em blocos</span>
                 </div>
               </button>
@@ -1372,7 +1372,7 @@ export const Planilha: React.FC = () => {
                                 <span className={cn(
                                   "font-mono text-xs px-2 py-0.5 rounded-md",
                                   hasPix
-                                    ? "bg-[#ff6b00]/10 text-[#ff6b00] border border-[#ff6b00]/20"
+                                    ? "bg-[#AE0000]/10 text-[#AE0000] border border-[#AE0000]/20"
                                     : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700 italic"
                                 )}>
                                   {row.pix}
@@ -1391,7 +1391,7 @@ export const Planilha: React.FC = () => {
                                     isCopied
                                       ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
                                       : hasPix
-                                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-[#ff6b00] hover:text-[#ff6b00]"
+                                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-[#AE0000] hover:text-[#AE0000]"
                                         : "bg-zinc-50 dark:bg-zinc-900/50 text-zinc-300 dark:text-zinc-600 cursor-not-allowed border border-transparent"
                                   )}
                                 >
@@ -1636,7 +1636,7 @@ export const Planilha: React.FC = () => {
                 </span>
               </div>
               
-              <div className="bg-[#ff6b00] px-8 py-4 rounded-2xl shadow-xl shadow-orange-500/30 flex flex-col items-end">
+              <div className="bg-[#AE0000] px-8 py-4 rounded-2xl shadow-xl shadow-orange-500/30 flex flex-col items-end">
                 <span className="text-[10px] font-black uppercase tracking-widest text-white/80 mb-1">Total da Proposta</span>
                 <span className="font-mono font-black text-3xl text-white tabular-nums leading-none">{formatCurrency(globals.totalClient)}</span>
               </div>
@@ -1691,7 +1691,7 @@ export const Planilha: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-zinc-400 font-semibold block mb-0.5">Valor Unitário</span>
-                    <span className="font-black text-[#ff6b00] font-mono">{formatCurrency(resourceToSave.unitCost)}</span>
+                    <span className="font-black text-[#AE0000] font-mono">{formatCurrency(resourceToSave.unitCost)}</span>
                   </div>
                 </div>
               </div>
@@ -1717,7 +1717,7 @@ export const Planilha: React.FC = () => {
                       setIsSavingResource(false);
                     }
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#ff6b00] hover:bg-[#e55e00] disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#AE0000] hover:bg-[#e55e00] disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-orange-500/20"
                 >
                   <UserPlus size={14} />
                   Salvar como Profissional
@@ -1784,3 +1784,4 @@ export const Planilha: React.FC = () => {
     </div>
   );
 };
+

@@ -6,3 +6,4 @@ export function ProtectedRoute() {
   // Para reativar o login, remova a linha abaixo e desente as linhas seguintes.
   return <Outlet />;
 }
+

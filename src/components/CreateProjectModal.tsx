@@ -64,3 +64,4 @@ export const CreateProjectModal: React.FC<Props> = ({ isOpen, onClose, templates
     </div>
   );
 };
+
