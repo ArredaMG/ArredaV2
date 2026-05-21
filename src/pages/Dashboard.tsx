@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Plus, ListFilter, LayoutGrid, Copy, Trash2, TrendingUp, Clock, CheckCircle2, Flag } from 'lucide-react';
 import { useProjects } from '../hooks/useProjects';
-import { useTemplates } from '../hooks/useResources';
+import { useTemplates, resourceKeys } from '../hooks/useResources';
+import { LoadingSpinner, ErrorPanel } from '../components/ui';
 import { useModal } from '../context/ModalContext';
 import { Project, Template } from '../types';
 import { CreateProjectModal } from '../components/CreateProjectModal';
@@ -12,16 +14,41 @@ import { calculateProjectTotals } from '../lib/calculations';
 import { calculateFinancials } from '../lib/project-utils';
 
 export const Dashboard: React.FC = () => {
+  const queryClient = useQueryClient();
   const {
     projects = [],
+    isLoading: isLoadingProjects,
+    isError: isErrorProjects,
+    refetchProjects,
     createProjectMutation,
     addVersionMutation,
     deleteProjectMutation,
     updateProjectMutation,
   } = useProjects();
-  const { templates = [] } = useTemplates();
+  const { templates = [], isLoading: isLoadingTemplates, isError: isErrorTemplates } = useTemplates();
   const { openModal } = useModal();
   const navigate = useNavigate();
+
+  const isLoading = isLoadingProjects || isLoadingTemplates;
+  const isError = isErrorProjects || isErrorTemplates;
+
+  const handleRetry = () => {
+    void refetchProjects();
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.templates });
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner label="Carregando projetos..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorPanel
+        message="Não conseguimos carregar seus projetos ou templates. Verifique sua conexão e tente novamente."
+        onRetry={handleRetry}
+      />
+    );
+  }
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [filterStatus, setFilterStatus] = useState<'Todos' | 'Pendente' | 'Aprovado' | 'Concluído'>('Todos');
 

@@ -3,8 +3,10 @@ import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Plus, Trash2, Home, Printer, Save, ArrowLeft, Link as LinkIcon, Copy, Info, X, UserPlus, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Check, Paperclip, Eye, Loader2, Lock, FileText } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { useProjects, useProjectVersion } from '../hooks/useProjects';
-import { useClients, useProfessionals, useEquipments, useTemplates } from '../hooks/useResources';
+import { useProjects, useProjectVersion, projectKeys } from '../hooks/useProjects';
+import { useClients, useProfessionals, useEquipments, useTemplates, resourceKeys } from '../hooks/useResources';
+import { LoadingSpinner, ErrorPanel } from '../components/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useModal } from '../context/ModalContext';
 import { useAuth } from '@clerk/clerk-react';
 import { CostGroup, CostItem, Project, ProjectVersion } from '../types';
@@ -17,25 +19,68 @@ import { updateDealByProjectId } from '../services/db-services';
 export const Planilha: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { getToken } = useAuth();
   const {
     projects = [],
+    isLoading: isLoadingProjects,
+    isError: isErrorProjects,
+    refetchProjects,
     updateProjectMutation,
     updateVersionMutation,
     addVersionMutation,
     deleteVersionMutation,
   } = useProjects();
   const { editingTemplateId, setEditingTemplateId } = useAppContext();
-  const { clients: clientes = [] } = useClients();
-  const { professionals = [], addProfessionalMutation } = useProfessionals();
-  const { equipments = [], addEquipmentMutation } = useEquipments();
-  const { templates = [], addTemplateMutation } = useTemplates();
+  const { clients: clientes = [], isLoading: isLoadingClients, isError: isErrorClients } = useClients();
+  const { professionals = [], isLoading: isLoadingProfessionals, isError: isErrorProfessionals, addProfessionalMutation } = useProfessionals();
+  const { equipments = [], isLoading: isLoadingEquipments, isError: isErrorEquipments, addEquipmentMutation } = useEquipments();
+  const { templates = [], isLoading: isLoadingTemplates, isError: isErrorTemplates, addTemplateMutation } = useTemplates();
   const { openModal } = useModal();
   
   const [project, setProject] = useState<Project | null>(null);
   const [showOS, setShowOS] = useState(false);
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
-  const { versionGroups, isLoading: isVersionLoading } = useProjectVersion(activeVersionId);
+  const { versionGroups, isLoading: isVersionLoading, isError: isVersionError } = useProjectVersion(activeVersionId);
+
+  const isLoading =
+    isLoadingProjects ||
+    isLoadingClients ||
+    isLoadingProfessionals ||
+    isLoadingEquipments ||
+    isLoadingTemplates ||
+    (!!activeVersionId && isVersionLoading);
+  const isError =
+    isErrorProjects ||
+    isErrorClients ||
+    isErrorProfessionals ||
+    isErrorEquipments ||
+    isErrorTemplates ||
+    isVersionError;
+
+  const handleRetry = () => {
+    void refetchProjects();
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.clients });
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.professionals });
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.equipments });
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.templates });
+    if (activeVersionId) {
+      void queryClient.invalidateQueries({ queryKey: projectKeys.version(activeVersionId) });
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner label="Carregando planilha..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorPanel
+        message="Não conseguimos carregar os dados desta planilha. Verifique sua conexão e tente novamente."
+        onRetry={handleRetry}
+      />
+    );
+  }
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [expandedPriceRows, setExpandedPriceRows] = useState<Set<string>>(new Set());
   const [isDirty, setIsDirty] = useState(false);

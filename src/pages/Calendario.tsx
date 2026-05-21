@@ -2,10 +2,24 @@ import React, { useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
+import { LoadingSpinner, ErrorPanel } from '../components/ui';
 
 export const Calendario: React.FC = () => {
-  const { projects = [] } = useProjects();
+  const { projects = [], isLoading, isError, refetchProjects } = useProjects();
   const navigate = useNavigate();
+
+  if (isLoading) {
+    return <LoadingSpinner label="Carregando calendário..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorPanel
+        message="Não conseguimos carregar os projetos para o calendário. Verifique sua conexão e tente novamente."
+        onRetry={() => void refetchProjects()}
+      />
+    );
+  }
 
   const [currentDate, setCurrentDate] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1)

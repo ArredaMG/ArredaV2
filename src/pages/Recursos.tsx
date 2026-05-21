@@ -26,7 +26,8 @@ import { useAuth } from '@clerk/clerk-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '../context/AppContext';
 import { useProjects, projectKeys } from '../hooks/useProjects';
-import { useClients, useProfessionals, useEquipments, useTemplates } from '../hooks/useResources';
+import { useClients, useProfessionals, useEquipments, useTemplates, resourceKeys } from '../hooks/useResources';
+import { LoadingSpinner, ErrorPanel } from '../components/ui';
 import { loadVersionData } from '../services/db-services';
 import { useModal } from '../context/ModalContext';
 import { cn, formatCurrency } from '../lib/utils';
@@ -38,6 +39,9 @@ import { PropostaModal } from '../components/PropostaModal';
 export const Recursos: React.FC = () => {
   const {
     projects = [],
+    isLoading: isLoadingProjects,
+    isError: isErrorProjects,
+    refetchProjects,
     createProjectMutation,
     addVersionMutation,
     deleteProjectMutation,
@@ -46,10 +50,44 @@ export const Recursos: React.FC = () => {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
 
-  const { clients: clientes, addClientMutation, deleteClientMutation } = useClients();
-  const { professionals, addProfessionalMutation, updateProfessionalMutation, deleteProfessionalMutation } = useProfessionals();
-  const { equipments, addEquipmentMutation, updateEquipmentMutation, deleteEquipmentMutation } = useEquipments();
-  const { templates, deleteTemplateMutation } = useTemplates();
+  const { clients: clientes, isLoading: isLoadingClients, isError: isErrorClients, addClientMutation, deleteClientMutation } = useClients();
+  const { professionals, isLoading: isLoadingProfessionals, isError: isErrorProfessionals, addProfessionalMutation, updateProfessionalMutation, deleteProfessionalMutation } = useProfessionals();
+  const { equipments, isLoading: isLoadingEquipments, isError: isErrorEquipments, addEquipmentMutation, updateEquipmentMutation, deleteEquipmentMutation } = useEquipments();
+  const { templates, isLoading: isLoadingTemplates, isError: isErrorTemplates, deleteTemplateMutation } = useTemplates();
+
+  const isLoading =
+    isLoadingProjects ||
+    isLoadingClients ||
+    isLoadingProfessionals ||
+    isLoadingEquipments ||
+    isLoadingTemplates;
+  const isError =
+    isErrorProjects ||
+    isErrorClients ||
+    isErrorProfessionals ||
+    isErrorEquipments ||
+    isErrorTemplates;
+
+  const handleRetry = () => {
+    void refetchProjects();
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.clients });
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.professionals });
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.equipments });
+    void queryClient.invalidateQueries({ queryKey: resourceKeys.templates });
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner label="Carregando recursos..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorPanel
+        message="Não conseguimos carregar projetos, clientes ou cadastros. Verifique sua conexão e tente novamente."
+        onRetry={handleRetry}
+      />
+    );
+  }
 
   const { openModal } = useModal();
   const navigate = useNavigate();

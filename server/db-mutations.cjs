@@ -1,5 +1,15 @@
 const { mapProjectToClientShape } = require('./db-helpers.cjs');
 
+function pickDefinedFields(body, allowedFields) {
+  const updates = {};
+  for (const field of allowedFields) {
+    if (body[field] !== undefined) {
+      updates[field] = body[field];
+    }
+  }
+  return updates;
+}
+
 function registerDbMutationRoutes(app, deps) {
   const { db, schema, eq, and, ne, inArray, notInArray, ClerkExpressRequireAuth } = deps;
   const auth = ClerkExpressRequireAuth();
@@ -473,7 +483,14 @@ function registerDbMutationRoutes(app, deps) {
 
   app.put('/api/db/clients/:id', auth, requireDb, async (req, res) => {
     try {
-      await db.update(schema.clients).set(req.body).where(eq(schema.clients.id, req.params.id));
+      const updates = pickDefinedFields(req.body, [
+        'name', 'document', 'contactName', 'contactRole', 'leadSource', 'contacts', 'decisores',
+      ]);
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'Nenhum campo válido para atualizar.' });
+      }
+      updates.updatedAt = new Date();
+      await db.update(schema.clients).set(updates).where(eq(schema.clients.id, req.params.id));
       return res.json({ success: true });
     } catch (error) {
       console.error('Erro em PUT clients:', error);
@@ -504,7 +521,11 @@ function registerDbMutationRoutes(app, deps) {
 
   app.put('/api/db/professionals/:id', auth, requireDb, async (req, res) => {
     try {
-      await db.update(schema.professionals).set(req.body).where(eq(schema.professionals.id, req.params.id));
+      const updates = pickDefinedFields(req.body, ['name', 'role', 'pix', 'dailyRate']);
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'Nenhum campo válido para atualizar.' });
+      }
+      await db.update(schema.professionals).set(updates).where(eq(schema.professionals.id, req.params.id));
       return res.json({ success: true });
     } catch (error) {
       console.error('Erro em PUT professionals:', error);
@@ -535,7 +556,11 @@ function registerDbMutationRoutes(app, deps) {
 
   app.put('/api/db/equipments/:id', auth, requireDb, async (req, res) => {
     try {
-      await db.update(schema.equipments).set(req.body).where(eq(schema.equipments.id, req.params.id));
+      const updates = pickDefinedFields(req.body, ['name', 'category', 'rentalValue']);
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'Nenhum campo válido para atualizar.' });
+      }
+      await db.update(schema.equipments).set(updates).where(eq(schema.equipments.id, req.params.id));
       return res.json({ success: true });
     } catch (error) {
       console.error('Erro em PUT equipments:', error);
@@ -566,7 +591,11 @@ function registerDbMutationRoutes(app, deps) {
 
   app.put('/api/db/templates/:id', auth, requireDb, async (req, res) => {
     try {
-      await db.update(schema.templates).set(req.body).where(eq(schema.templates.id, req.params.id));
+      const updates = pickDefinedFields(req.body, ['name', 'data']);
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'Nenhum campo válido para atualizar.' });
+      }
+      await db.update(schema.templates).set(updates).where(eq(schema.templates.id, req.params.id));
       return res.json({ success: true });
     } catch (error) {
       console.error('Erro em PUT templates:', error);

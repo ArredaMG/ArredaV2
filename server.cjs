@@ -32,12 +32,15 @@ if (!process.env.DATABASE_URL || !process.env.CLERK_SECRET_KEY) {
   dotenv.config({ path: '.env.local' });
 }
 
-const databaseUrl = process.env.DATABASE_URL || process.env.VITE_DATABASE_URL;
+const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   db = drizzle(pool, { schema });
 } else {
   console.warn('⚠️ DATABASE_URL não configurada — rotas /api/db/* indisponíveis.');
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('⚠️ Use DATABASE_URL no .env do servidor (não use VITE_DATABASE_URL).');
+  }
 }
 
 if (!process.env.CLERK_SECRET_KEY) {
