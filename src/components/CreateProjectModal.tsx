@@ -1,63 +1,91 @@
-import React, { useEffect, useState } from 'react';
-import { X, Copy } from 'lucide-react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { X, FilePlus, LayoutTemplate, Loader2 } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import { useTemplates } from '../hooks/useResources';
+import { useProjects } from '../hooks/useProjects';
 import { Template } from '../types';
+import { cn } from '../lib/utils';
 
-export type CreateProjectFormData = {
-  title: string;
-  client: string;
-  defaultTax: number;
-  defaultMargin: number;
+export type CreateProjectDefaults = {
+  title?: string;
+  client?: string;
 };
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  templates: Template[];
-  onCreateBlank: (data: CreateProjectFormData) => void;
-  onCreateFromTemplate: (template: Template) => void;
-  isSubmitting?: boolean;
+  defaults?: CreateProjectDefaults;
+  onProjectCreated?: (projectId: string) => void | Promise<void>;
+}
+
+function cloneTemplateGroups(template: Template) {
+  return template.data.groups.map((g) => ({
+    ...g,
+    id: uuidv4(),
+    items: g.items.map((i) => ({ ...i, id: uuidv4() })),
+  }));
 }
 
 export const CreateProjectModal: React.FC<Props> = ({
   isOpen,
   onClose,
-  templates,
-  onCreateBlank,
-  onCreateFromTemplate,
-  isSubmitting = false,
+  defaults,
+  onProjectCreated,
 }) => {
-  const [title, setTitle] = useState('Novo Projeto');
-  const [client, setClient] = useState('');
-  const [defaultTax, setDefaultTax] = useState(10);
-  const [defaultMargin, setDefaultMargin] = useState(15);
+  const navigate = useNavigate();
+  const { templates, isLoading: isLoadingTemplates, isError: isTemplatesError } = useTemplates();
+  const { createProjectMutation } = useProjects();
 
-  useEffect(() => {
-    if (isOpen) {
-      setTitle('Novo Projeto');
-      setClient('');
-      setDefaultTax(10);
-      setDefaultMargin(15);
+  const isSubmitting = createProjectMutation.isPending;
+  const clientName = defaults?.client?.trim() || 'Cliente Não Informado';
+
+  const handleSuccess = async (projectId: string) => {
+    if (onProjectCreated) {
+      await onProjectCreated(projectId);
     }
-  }, [isOpen]);
+    onClose();
+    navigate(`/orcamentos/${projectId}`);
+  };
 
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onCreateBlank({
-      title: title.trim() || 'Novo Projeto',
-      client: client.trim() || 'Cliente Não Informado',
-      defaultTax,
-      defaultMargin,
+  const runCreate = (payload: Parameters<typeof createProjectMutation.mutate>[0]) => {
+    createProjectMutation.mutate(payload, {
+      onSuccess: (data) => void handleSuccess(data.id),
     });
   };
 
+  const handleCreateBlank = () => {
+    runCreate({
+      title: defaults?.title?.trim() || 'Novo Projeto',
+      client: clientName,
+      status: 'Pendente',
+      defaultTax: 10,
+      defaultMargin: 15,
+      groups: [],
+    });
+  };
+
+  const handleCreateFromTemplate = (template: Template) => {
+    const baseTitle = defaults?.title?.trim() || 'Novo Projeto';
+    runCreate({
+      title: `${baseTitle} (Template: ${template.name})`,
+      client: clientName,
+      status: 'Pendente',
+      defaultTax: template.data.defaultTax,
+      defaultMargin: template.data.defaultMargin,
+      groups: cloneTemplateGroups(template),
+    });
+  };
+
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl p-6 text-gray-900 dark:text-gray-100 max-h-[80vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold">Novo Orçamento</h3>
+      <div className="w-full max-w-2xl bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl text-gray-900 dark:text-gray-100 max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <h3 className="text-xl font-bold tracking-tight">Novo Orçamento</h3>
           <button
+            type="button"
             onClick={onClose}
             disabled={isSubmitting}
             className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
@@ -66,96 +94,90 @@ export const CreateProjectModal: React.FC<Props> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mb-6">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-              Título do Projeto *
-            </label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000] outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-              Cliente
-            </label>
-            <input
-              type="text"
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-              placeholder="Nome do cliente"
-              className="w-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000] outline-none"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                Imposto (%)
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={0.1}
-                value={defaultTax}
-                onChange={(e) => setDefaultTax(Number(e.target.value))}
-                className="w-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000] outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                Margem (%)
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={0.1}
-                value={defaultMargin}
-                onChange={(e) => setDefaultMargin(Number(e.target.value))}
-                className="w-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-[#AE0000] outline-none"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-[#AE0000] hover:bg-[#AE0000]/90 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? 'Criando...' : 'Criar Projeto'}
-          </button>
-        </form>
+        <div className="overflow-y-auto p-6 space-y-8">
+          {/* Hero — projeto em branco */}
+          <section className="flex flex-col items-center text-center">
+            <button
+              type="button"
+              onClick={handleCreateBlank}
+              disabled={isSubmitting}
+              className={cn(
+                'group w-full max-w-sm flex flex-col items-center gap-4 p-8 rounded-2xl border-2 border-dashed transition-all duration-200',
+                'border-zinc-200 dark:border-zinc-700 hover:border-[#AE0000] hover:bg-[#AE0000]/5 dark:hover:bg-[#AE0000]/10',
+                'disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:border-zinc-200'
+              )}
+            >
+              <div className="w-16 h-16 rounded-2xl bg-[#AE0000]/10 text-[#AE0000] flex items-center justify-center group-hover:bg-[#AE0000] group-hover:text-white transition-colors">
+                {isSubmitting ? (
+                  <Loader2 size={32} className="animate-spin" />
+                ) : (
+                  <FilePlus size={32} strokeWidth={2} />
+                )}
+              </div>
+              <div>
+                <span className="block text-lg font-bold text-gray-900 dark:text-white group-hover:text-[#AE0000] transition-colors">
+                  Novo Orçamento
+                </span>
+                <span className="block text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Começar do zero, sem grupos ou itens
+                </span>
+              </div>
+            </button>
+          </section>
 
-        {templates.length > 0 && (
-          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-            <h4 className="font-medium text-sm text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">
-              Ou escolha um Template
+          {/* Templates dinâmicos */}
+          <section>
+            <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 text-center">
+              Modelos salvos
             </h4>
-            <div className="space-y-3">
-              {templates.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => onCreateFromTemplate(t)}
-                  className="w-full flex items-center gap-4 p-4 text-left border border-gray-200 dark:border-gray-800 hover:border-[#AE0000] dark:hover:border-[#AE0000] rounded-xl hover:bg-[#AE0000]/5 dark:hover:bg-[#AE0000]/10 transition-all group disabled:opacity-60"
-                >
-                  <div className="bg-gray-100 dark:bg-gray-800 group-hover:bg-[#AE0000]/10 p-3 rounded-lg text-gray-500 group-hover:text-[#AE0000] transition-colors">
-                    <Copy size={24} />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-md">{t.name}</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {t.data.groups?.length || 0} grupos de custo pré-definidos
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+
+            {isLoadingTemplates && (
+              <div className="flex justify-center py-10">
+                <Loader2 size={28} className="animate-spin text-[#AE0000]" />
+              </div>
+            )}
+
+            {isTemplatesError && (
+              <p className="text-center text-sm text-red-500 py-6">
+                Não foi possível carregar os templates.
+              </p>
+            )}
+
+            {!isLoadingTemplates && !isTemplatesError && templates.length === 0 && (
+              <p className="text-center text-sm text-zinc-500 py-6">
+                Nenhum template cadastrado ainda.
+              </p>
+            )}
+
+            {!isLoadingTemplates && templates.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {templates.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleCreateFromTemplate(template)}
+                    className={cn(
+                      'flex flex-col items-start gap-2 p-4 rounded-xl border text-left transition-all',
+                      'border-gray-200 dark:border-gray-800 hover:border-[#AE0000] hover:bg-[#AE0000]/5 dark:hover:bg-[#AE0000]/10',
+                      'disabled:opacity-60 disabled:cursor-not-allowed'
+                    )}
+                  >
+                    <div className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                      <LayoutTemplate size={18} />
+                    </div>
+                    <span className="font-semibold text-sm line-clamp-2 leading-snug">
+                      {template.name}
+                    </span>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                      {template.data.groups?.length ?? 0} grupos
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

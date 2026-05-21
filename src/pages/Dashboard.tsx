@@ -1,40 +1,33 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { Plus, ListFilter, LayoutGrid, Copy, Trash2, TrendingUp, Clock, CheckCircle2, Flag } from 'lucide-react';
 import { useProjects } from '../hooks/useProjects';
-import { useTemplates, resourceKeys } from '../hooks/useResources';
 import { LoadingSpinner, ErrorPanel } from '../components/ui';
 import { useModal } from '../context/ModalContext';
-import { Project, Template } from '../types';
-import { CreateProjectModal, CreateProjectFormData } from '../components/CreateProjectModal';
+import { Project } from '../types';
+import { CreateProjectModal } from '../components/CreateProjectModal';
 import { cn, formatCurrency } from '../lib/utils';
-import { v4 as uuidv4 } from 'uuid';
 import { calculateProjectTotals } from '../lib/calculations';
 import { calculateFinancials } from '../lib/project-utils';
 
 export const Dashboard: React.FC = () => {
-  const queryClient = useQueryClient();
   const {
     projects = [],
     isLoading: isLoadingProjects,
     isError: isErrorProjects,
     refetchProjects,
-    createProjectMutation,
     addVersionMutation,
     deleteProjectMutation,
     updateProjectMutation,
   } = useProjects();
-  const { templates = [], isLoading: isLoadingTemplates, isError: isErrorTemplates } = useTemplates();
   const { openModal } = useModal();
   const navigate = useNavigate();
 
-  const isLoading = isLoadingProjects || isLoadingTemplates;
-  const isError = isErrorProjects || isErrorTemplates;
+  const isLoading = isLoadingProjects;
+  const isError = isErrorProjects;
 
   const handleRetry = () => {
     void refetchProjects();
-    void queryClient.invalidateQueries({ queryKey: resourceKeys.templates });
   };
 
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
@@ -76,48 +69,6 @@ export const Dashboard: React.FC = () => {
     }
   };
   
-  const createBlankProject = (form: CreateProjectFormData) => {
-    createProjectMutation.mutate(
-      {
-        title: form.title,
-        client: form.client,
-        status: 'Pendente',
-        defaultTax: form.defaultTax,
-        defaultMargin: form.defaultMargin,
-        groups: [],
-      },
-      {
-        onSuccess: (data) => {
-          setShowCreateModal(false);
-          navigate(`/orcamentos/${data.id}`);
-        },
-      }
-    );
-  };
-
-  const createFromTemplate = (selected: Template) => {
-    createProjectMutation.mutate(
-      {
-        title: 'Novo Projeto (Template: ' + selected.name + ')',
-        client: 'Cliente Não Informado',
-        status: 'Pendente',
-        defaultTax: selected.data.defaultTax,
-        defaultMargin: selected.data.defaultMargin,
-        groups: selected.data.groups.map(g => ({
-          ...g,
-          id: uuidv4(),
-          items: g.items.map(i => ({ ...i, id: uuidv4() })),
-        })),
-      },
-      {
-        onSuccess: (data) => {
-          setShowCreateModal(false);
-          navigate(`/orcamentos/${data.id}`);
-        },
-      }
-    );
-  };
-
   const handleDelete = (id: string) => {
     openModal({
       title: 'Excluir Projeto',
@@ -213,7 +164,7 @@ export const Dashboard: React.FC = () => {
   if (isError) {
     return (
       <ErrorPanel
-        message="Não conseguimos carregar seus projetos ou templates. Verifique sua conexão e tente novamente."
+        message="Não conseguimos carregar seus projetos. Verifique sua conexão e tente novamente."
         onRetry={handleRetry}
       />
     );
@@ -261,10 +212,6 @@ export const Dashboard: React.FC = () => {
             <CreateProjectModal
               isOpen={showCreateModal}
               onClose={() => setShowCreateModal(false)}
-              templates={templates}
-              onCreateBlank={createBlankProject}
-              onCreateFromTemplate={createFromTemplate}
-              isSubmitting={createProjectMutation.isPending}
             />
             
             <button 

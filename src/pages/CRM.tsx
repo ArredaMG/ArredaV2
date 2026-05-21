@@ -24,15 +24,15 @@ import {
   Globe,
   X
 } from 'lucide-react';
-import { CreateProjectModal, CreateProjectFormData } from '../components/CreateProjectModal';
+import { CreateProjectModal } from '../components/CreateProjectModal';
 import { FileText } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { useClients, useTemplates } from '../hooks/useResources';
+import { useClients } from '../hooks/useResources';
 import { useProjects } from '../hooks/useProjects';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import * as dbService from '../services/db-services';
-import { Pipeline, Stage, Deal, Client, Template } from '../types';
+import { Pipeline, Stage, Deal, Client } from '../types';
 import { calculateFinancials } from '../lib/project-utils';
 import { cn } from '../lib/utils';
 import { KanbanBoard } from '../components/crm';
@@ -58,9 +58,8 @@ const getContactIcon = (type: string) => {
 };
 
 export const CRM: React.FC = () => {
-  const { projects = [], createProjectMutation } = useProjects();
+  const { projects = [] } = useProjects();
   const { clients: clientes = [], updateClientMutation } = useClients();
-  const { templates = [] } = useTemplates();
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const navigate = useNavigate();
 
@@ -570,56 +569,20 @@ export const CRM: React.FC = () => {
     await loadCRMData(true);
   };
   // Create a blank project from a deal
-  const linkDealToProject = async (projectId: string) => {
+  const dealCreateDefaults = dealToCreateProject
+    ? {
+        title: dealToCreateProject.title,
+        client:
+          dealToCreateProject.client?.name ||
+          clientes.find((c) => c.id === dealToCreateProject.clientId)?.name,
+      }
+    : undefined;
+
+  const handleDealProjectCreated = async (projectId: string) => {
     if (!dealToCreateProject) return;
     const token = await requireToken();
     await dbService.updateDeal(dealToCreateProject.id, { projectId }, token);
-    setShowCreateProjectModal(false);
     setDealToCreateProject(null);
-    navigate(`/orcamentos/${projectId}`);
-  };
-
-  const createBlankProjectFromDeal = (form: CreateProjectFormData) => {
-    if (!dealToCreateProject) return;
-    const clientName =
-      form.client ||
-      dealToCreateProject.client?.name ||
-      clientes.find(c => c.id === dealToCreateProject.clientId)?.name ||
-      'Cliente Não Informado';
-    createProjectMutation.mutate(
-      {
-        title: form.title || dealToCreateProject.title,
-        client: clientName,
-        status: 'Pendente',
-        defaultTax: form.defaultTax,
-        defaultMargin: form.defaultMargin,
-        groups: [],
-      },
-      { onSuccess: (data) => void linkDealToProject(data.id) }
-    );
-  };
-
-  const createFromTemplateFromDeal = (selected: Template) => {
-    if (!dealToCreateProject) return;
-    const clientName =
-      dealToCreateProject.client?.name ||
-      clientes.find(c => c.id === dealToCreateProject.clientId)?.name ||
-      'Cliente Não Informado';
-    createProjectMutation.mutate(
-      {
-        title: `${dealToCreateProject.title} (Template: ${selected.name})`,
-        client: clientName,
-        status: 'Pendente',
-        defaultTax: selected.data.defaultTax,
-        defaultMargin: selected.data.defaultMargin,
-        groups: selected.data.groups.map(g => ({
-          ...g,
-          id: uuidv4(),
-          items: g.items.map(i => ({ ...i, id: uuidv4() })),
-        })),
-      },
-      { onSuccess: (data) => void linkDealToProject(data.id) }
-    );
   };
 
   // Open Edit Modal
@@ -1427,10 +1390,8 @@ export const CRM: React.FC = () => {
           setShowCreateProjectModal(false);
           setDealToCreateProject(null);
         }}
-        templates={templates}
-        onCreateBlank={createBlankProjectFromDeal}
-        onCreateFromTemplate={createFromTemplateFromDeal}
-        isSubmitting={createProjectMutation.isPending}
+        defaults={dealCreateDefaults}
+        onProjectCreated={dealToCreateProject ? handleDealProjectCreated : undefined}
       />
 
       {/* Stage Modal */}

@@ -33,7 +33,7 @@ import { useModal } from '../context/ModalContext';
 import { cn, formatCurrency } from '../lib/utils';
 import { Template, Professional, Equipment, Project, ProjectVersion, Client } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateProjectModal, CreateProjectFormData } from '../components/CreateProjectModal';
+import { CreateProjectModal } from '../components/CreateProjectModal';
 import { PropostaModal } from '../components/PropostaModal';
 
 export const Recursos: React.FC = () => {
@@ -114,48 +114,6 @@ export const Recursos: React.FC = () => {
   // Handlers for Projects/Orçamentos
   const handleCreateNewProject = () => {
     setShowCreateModal(true);
-  };
-
-  const createBlankProject = (form: CreateProjectFormData) => {
-    createProjectMutation.mutate(
-      {
-        title: form.title,
-        client: form.client,
-        status: 'Pendente',
-        defaultTax: form.defaultTax,
-        defaultMargin: form.defaultMargin,
-        groups: [],
-      },
-      {
-        onSuccess: (data) => {
-          setShowCreateModal(false);
-          navigate(`/orcamentos/${data.id}`);
-        },
-      }
-    );
-  };
-
-  const createFromTemplate = (selected: Template) => {
-    createProjectMutation.mutate(
-      {
-        title: 'Novo Projeto (Template: ' + selected.name + ')',
-        client: 'Cliente Não Informado',
-        status: 'Pendente',
-        defaultTax: selected.data.defaultTax,
-        defaultMargin: selected.data.defaultMargin,
-        groups: selected.data.groups.map(g => ({
-          ...g,
-          id: uuidv4(),
-          items: g.items.map(i => ({ ...i, id: uuidv4() })),
-        })),
-      },
-      {
-        onSuccess: (data) => {
-          setShowCreateModal(false);
-          navigate(`/orcamentos/${data.id}`);
-        },
-      }
-    );
   };
 
   const handleDeleteProject = (id: string) => {
@@ -445,10 +403,6 @@ export const Recursos: React.FC = () => {
                   <CreateProjectModal
                     isOpen={showCreateModal}
                     onClose={() => setShowCreateModal(false)}
-                    templates={templates}
-                    onCreateBlank={createBlankProject}
-                    onCreateFromTemplate={createFromTemplate}
-                    isSubmitting={createProjectMutation.isPending}
                   />
                   <button 
                     onClick={handleCreateNewProject}
