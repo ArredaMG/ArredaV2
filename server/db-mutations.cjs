@@ -1,4 +1,72 @@
+const { sql } = require('drizzle-orm');
 const { mapProjectToClientShape } = require('./db-helpers.cjs');
+
+const costItemConflictUpdate = {
+  role: sql`excluded.role`,
+  name: sql`excluded.name`,
+  quantity: sql`excluded.quantity`,
+  days: sql`excluded.days`,
+  unitCost: sql`excluded.unit_cost`,
+  tax: sql`excluded.tax`,
+  isInHouse: sql`excluded.is_in_house`,
+  customMargin: sql`excluded.custom_margin`,
+  executedCost: sql`excluded.executed_cost`,
+  receiptLink: sql`excluded.receipt_link`,
+  category: sql`excluded.category`,
+};
+
+function mapCostItemRow(item, groupId) {
+  return {
+    id: item.id,
+    groupId,
+    role: item.role,
+    name: item.name,
+    quantity: item.quantity,
+    days: item.days,
+    unitCost: item.unitCost,
+    tax: item.tax,
+    isInHouse: item.isInHouse,
+    customMargin: item.customMargin,
+    executedCost: item.executedCost,
+    receiptLink: item.receiptLink,
+    category: item.category,
+  };
+}
+
+async function upsertCostItemsBatch(tx, schema, eq, and, notInArray, group, items) {
+  if (!items?.length) return [];
+
+  const keptItemIds = items.filter(i => i.id).map(i => i.id);
+
+  await tx.insert(schema.costItems)
+    .values(items.map(item => mapCostItemRow(item, group.id)))
+    .onConflictDoUpdate({
+      target: schema.costItems.id,
+      set: costItemConflictUpdate,
+    });
+
+  if (keptItemIds.length > 0) {
+    await tx.delete(schema.costItems)
+      .where(and(
+        eq(schema.costItems.groupId, group.id),
+        notInArray(schema.costItems.id, keptItemIds)
+      ));
+  } else {
+    await tx.delete(schema.costItems).where(eq(schema.costItems.groupId, group.id));
+  }
+
+  return keptItemIds;
+}
+
+async function resolveProjectNumber(tx, schema, projectData) {
+  if (projectData.projectNumber != null && projectData.projectNumber !== 0) {
+    return projectData.projectNumber;
+  }
+
+  const rows = await tx.select({ projectNumber: schema.projects.projectNumber }).from(schema.projects);
+  const maxNumber = rows.reduce((max, row) => Math.max(max, row.projectNumber ?? 0), 0);
+  return maxNumber + 1;
+}
 
 function pickDefinedFields(body, allowedFields) {
   const updates = {};
@@ -131,12 +199,13 @@ function registerDbMutationRoutes(app, deps) {
     try {
       const projectData = req.body;
       const result = await db.transaction(async (tx) => {
+        const projectNumber = await resolveProjectNumber(tx, schema, projectData);
         const [newProject] = await tx.insert(schema.projects).values({
           id: projectData.id,
           title: projectData.title,
           clientId: projectData.clientId,
           status: projectData.status,
-          projectNumber: projectData.projectNumber || 0
+          projectNumber,
         }).returning();
 
         if (!newProject) throw new Error('Failed to insert project');
@@ -234,50 +303,7 @@ function registerDbMutationRoutes(app, deps) {
                 });
 
                 if (group.items && Array.isArray(group.items)) {
-                  const keptItemIds = group.items.filter(i => i.id).map(i => i.id);
-
-                  for (const item of group.items) {
-                    await tx.insert(schema.costItems).values({
-                      id: item.id,
-                      groupId: group.id,
-                      role: item.role,
-                      name: item.name,
-                      quantity: item.quantity,
-                      days: item.days,
-                      unitCost: item.unitCost,
-                      tax: item.tax,
-                      isInHouse: item.isInHouse,
-                      customMargin: item.customMargin,
-                      executedCost: item.executedCost,
-                      receiptLink: item.receiptLink,
-                      category: item.category
-                    }).onConflictDoUpdate({
-                      target: schema.costItems.id,
-                      set: {
-                        role: item.role,
-                        name: item.name,
-                        quantity: item.quantity,
-                        days: item.days,
-                        unitCost: item.unitCost,
-                        tax: item.tax,
-                        isInHouse: item.isInHouse,
-                        customMargin: item.customMargin,
-                        executedCost: item.executedCost,
-                        receiptLink: item.receiptLink,
-                        category: item.category
-                      }
-                    });
-                  }
-
-                  if (keptItemIds.length > 0) {
-                    await tx.delete(schema.costItems)
-                      .where(and(
-                        eq(schema.costItems.groupId, group.id),
-                        notInArray(schema.costItems.id, keptItemIds)
-                      ));
-                  } else {
-                    await tx.delete(schema.costItems).where(eq(schema.costItems.groupId, group.id));
-                  }
+                  await upsertCostItemsBatch(tx, schema, eq, and, notInArray, group, group.items);
                 }
               }
 
@@ -358,47 +384,8 @@ function registerDbMutationRoutes(app, deps) {
             set: { name: group.name, margin: group.margin, isActive: group.isActive }
           });
 
-          const keptItemIds = group.items.filter(i => i.id).map(i => i.id);
-
-          for (const item of group.items) {
-            await tx.insert(schema.costItems).values({
-              id: item.id,
-              groupId: group.id,
-              role: item.role,
-              name: item.name,
-              quantity: item.quantity,
-              days: item.days,
-              unitCost: item.unitCost,
-              tax: item.tax,
-              isInHouse: item.isInHouse,
-              customMargin: item.customMargin,
-              executedCost: item.executedCost,
-              receiptLink: item.receiptLink,
-              category: item.category
-            }).onConflictDoUpdate({
-              target: schema.costItems.id,
-              set: {
-                role: item.role,
-                name: item.name,
-                quantity: item.quantity,
-                days: item.days,
-                unitCost: item.unitCost,
-                tax: item.tax,
-                isInHouse: item.isInHouse,
-                customMargin: item.customMargin,
-                executedCost: item.executedCost,
-                receiptLink: item.receiptLink,
-                category: item.category
-              }
-            });
-          }
-
-          if (keptItemIds.length > 0) {
-            await tx.delete(schema.costItems)
-              .where(and(
-                eq(schema.costItems.groupId, group.id),
-                notInArray(schema.costItems.id, keptItemIds)
-              ));
+          if (group.items?.length) {
+            await upsertCostItemsBatch(tx, schema, eq, and, notInArray, group, group.items);
           } else {
             await tx.delete(schema.costItems).where(eq(schema.costItems.groupId, group.id));
           }

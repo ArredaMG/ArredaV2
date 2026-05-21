@@ -24,7 +24,7 @@ import {
   Globe,
   X
 } from 'lucide-react';
-import { CreateProjectModal } from '../components/CreateProjectModal';
+import { CreateProjectModal, CreateProjectFormData } from '../components/CreateProjectModal';
 import { FileText } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useClients, useTemplates } from '../hooks/useResources';
@@ -570,45 +570,56 @@ export const CRM: React.FC = () => {
     await loadCRMData(true);
   };
   // Create a blank project from a deal
-  const createBlankProjectFromDeal = async () => {
+  const linkDealToProject = async (projectId: string) => {
     if (!dealToCreateProject) return;
-    const clientName = dealToCreateProject.client?.name || clientes.find(c => c.id === dealToCreateProject.clientId)?.name || 'Cliente Não Informado';
-    const newProject = await createProjectMutation.mutateAsync({
-      title: dealToCreateProject.title,
-      client: clientName,
-      status: 'Pendente',
-      defaultTax: 10,
-      defaultMargin: 15,
-      groups: []
-    });
     const token = await requireToken();
-    await dbService.updateDeal(dealToCreateProject.id, { projectId: newProject.id }, token);
+    await dbService.updateDeal(dealToCreateProject.id, { projectId }, token);
     setShowCreateProjectModal(false);
     setDealToCreateProject(null);
-    navigate(`/orcamentos/${newProject.id}`);
+    navigate(`/orcamentos/${projectId}`);
   };
 
-  // Create a project from a template based on a deal
-  const createFromTemplateFromDeal = async (selected: Template) => {
+  const createBlankProjectFromDeal = (form: CreateProjectFormData) => {
     if (!dealToCreateProject) return;
-    const clientName = dealToCreateProject.client?.name || clientes.find(c => c.id === dealToCreateProject.clientId)?.name || 'Cliente Não Informado';
-    const newProject = await createProjectMutation.mutateAsync({
-      title: `${dealToCreateProject.title} (Template: ${selected.name})`,
-      client: clientName,
-      status: 'Pendente',
-      defaultTax: selected.data.defaultTax,
-      defaultMargin: selected.data.defaultMargin,
-      groups: selected.data.groups.map(g => ({
-        ...g,
-        id: uuidv4(),
-        items: g.items.map(i => ({ ...i, id: uuidv4() }))
-      }))
-    });
-    const token = await requireToken();
-    await dbService.updateDeal(dealToCreateProject.id, { projectId: newProject.id }, token);
-    setShowCreateProjectModal(false);
-    setDealToCreateProject(null);
-    navigate(`/orcamentos/${newProject.id}`);
+    const clientName =
+      form.client ||
+      dealToCreateProject.client?.name ||
+      clientes.find(c => c.id === dealToCreateProject.clientId)?.name ||
+      'Cliente Não Informado';
+    createProjectMutation.mutate(
+      {
+        title: form.title || dealToCreateProject.title,
+        client: clientName,
+        status: 'Pendente',
+        defaultTax: form.defaultTax,
+        defaultMargin: form.defaultMargin,
+        groups: [],
+      },
+      { onSuccess: (data) => void linkDealToProject(data.id) }
+    );
+  };
+
+  const createFromTemplateFromDeal = (selected: Template) => {
+    if (!dealToCreateProject) return;
+    const clientName =
+      dealToCreateProject.client?.name ||
+      clientes.find(c => c.id === dealToCreateProject.clientId)?.name ||
+      'Cliente Não Informado';
+    createProjectMutation.mutate(
+      {
+        title: `${dealToCreateProject.title} (Template: ${selected.name})`,
+        client: clientName,
+        status: 'Pendente',
+        defaultTax: selected.data.defaultTax,
+        defaultMargin: selected.data.defaultMargin,
+        groups: selected.data.groups.map(g => ({
+          ...g,
+          id: uuidv4(),
+          items: g.items.map(i => ({ ...i, id: uuidv4() })),
+        })),
+      },
+      { onSuccess: (data) => void linkDealToProject(data.id) }
+    );
   };
 
   // Open Edit Modal
@@ -1419,6 +1430,7 @@ export const CRM: React.FC = () => {
         templates={templates}
         onCreateBlank={createBlankProjectFromDeal}
         onCreateFromTemplate={createFromTemplateFromDeal}
+        isSubmitting={createProjectMutation.isPending}
       />
 
       {/* Stage Modal */}

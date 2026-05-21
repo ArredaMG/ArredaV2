@@ -7,11 +7,12 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('🚨 [FATAL ERROR - UNHANDLED REJECTION]:', reason);
 });
 
-let express, cors, google, formidable, fs, path, dotenv, ClerkExpressRequireAuth;
+let express, cors, helmet, google, formidable, fs, path, dotenv, ClerkExpressRequireAuth;
 let drizzle, Pool, eq, and, ne, inArray, notInArray, schema, db;
 try {
   express = require('express');
   cors = require('cors');
+  helmet = require('helmet');
   ({ google } = require('googleapis'));
   formidable = require('formidable');
   fs = require('fs');
@@ -50,7 +51,11 @@ if (!process.env.CLERK_SECRET_KEY) {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors({
+  origin: process.env.APP_URL || 'http://localhost:3000',
+  credentials: true,
+}));
 app.use(express.json());
 
 // Rota de Upload do Google Drive protegida pelo Clerk

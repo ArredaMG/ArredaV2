@@ -33,7 +33,7 @@ import { useModal } from '../context/ModalContext';
 import { cn, formatCurrency } from '../lib/utils';
 import { Template, Professional, Equipment, Project, ProjectVersion, Client } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateProjectModal } from '../components/CreateProjectModal';
+import { CreateProjectModal, CreateProjectFormData } from '../components/CreateProjectModal';
 import { PropostaModal } from '../components/PropostaModal';
 
 export const Recursos: React.FC = () => {
@@ -116,34 +116,46 @@ export const Recursos: React.FC = () => {
     setShowCreateModal(true);
   };
 
-  const createBlankProject = async () => {
-    setShowCreateModal(false);
-    const newProject = await createProjectMutation.mutateAsync({
-      title: 'Novo Projeto',
-      client: 'Cliente Não Informado',
-      status: 'Pendente',
-      defaultTax: 10,
-      defaultMargin: 15,
-      groups: []
-    });
-    navigate(`/orcamentos/${newProject.id}`);
+  const createBlankProject = (form: CreateProjectFormData) => {
+    createProjectMutation.mutate(
+      {
+        title: form.title,
+        client: form.client,
+        status: 'Pendente',
+        defaultTax: form.defaultTax,
+        defaultMargin: form.defaultMargin,
+        groups: [],
+      },
+      {
+        onSuccess: (data) => {
+          setShowCreateModal(false);
+          navigate(`/orcamentos/${data.id}`);
+        },
+      }
+    );
   };
 
-  const createFromTemplate = async (selected: Template) => {
-    setShowCreateModal(false);
-    const newProject = await createProjectMutation.mutateAsync({
-      title: 'Novo Projeto (Template: ' + selected.name + ')',
-      client: 'Cliente Não Informado',
-      status: 'Pendente',
-      defaultTax: selected.data.defaultTax,
-      defaultMargin: selected.data.defaultMargin,
-      groups: selected.data.groups.map(g => ({
-        ...g,
-        id: uuidv4(),
-        items: g.items.map(i => ({ ...i, id: uuidv4() }))
-      }))
-    });
-    navigate(`/orcamentos/${newProject.id}`);
+  const createFromTemplate = (selected: Template) => {
+    createProjectMutation.mutate(
+      {
+        title: 'Novo Projeto (Template: ' + selected.name + ')',
+        client: 'Cliente Não Informado',
+        status: 'Pendente',
+        defaultTax: selected.data.defaultTax,
+        defaultMargin: selected.data.defaultMargin,
+        groups: selected.data.groups.map(g => ({
+          ...g,
+          id: uuidv4(),
+          items: g.items.map(i => ({ ...i, id: uuidv4() })),
+        })),
+      },
+      {
+        onSuccess: (data) => {
+          setShowCreateModal(false);
+          navigate(`/orcamentos/${data.id}`);
+        },
+      }
+    );
   };
 
   const handleDeleteProject = (id: string) => {
@@ -430,12 +442,13 @@ export const Recursos: React.FC = () => {
 
               {activeTab === 'orcamentos' && (
                 <>
-                  <CreateProjectModal 
-                    isOpen={showCreateModal} 
+                  <CreateProjectModal
+                    isOpen={showCreateModal}
                     onClose={() => setShowCreateModal(false)}
                     templates={templates}
                     onCreateBlank={createBlankProject}
                     onCreateFromTemplate={createFromTemplate}
+                    isSubmitting={createProjectMutation.isPending}
                   />
                   <button 
                     onClick={handleCreateNewProject}
