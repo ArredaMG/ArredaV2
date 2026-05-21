@@ -102,7 +102,7 @@ export function useProjects() {
       const savedProject = await createProject(newProjectData, token);
 
       const projectWithGroups: Project = {
-        id: savedProject.id,
+        id: savedProject.id ?? parentId,
         title: savedProject.title,
         client: projectData.client,
         status: savedProject.status as ProjectStatus,

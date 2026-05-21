@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { X, FilePlus, LayoutTemplate, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useTemplates } from '../hooks/useResources';
-import { useProjects } from '../hooks/useProjects';
-import { Template } from '../types';
+import { useProjects, CreateProjectInput } from '../hooks/useProjects';
+import { Project, Template } from '../types';
 import { cn } from '../lib/utils';
 
 export type CreateProjectDefaults = {
@@ -40,22 +40,32 @@ export const CreateProjectModal: React.FC<Props> = ({
   const isSubmitting = createProjectMutation.isPending;
   const clientName = defaults?.client?.trim() || 'Cliente Não Informado';
 
-  const handleSuccess = async (projectId: string) => {
+  const redirectToPlanilha = async (project: Project) => {
+    const projectId = project.id;
+    if (!projectId) {
+      console.error('[CreateProjectModal] Backend não retornou ID do projeto criado.', project);
+      return;
+    }
+
     if (onProjectCreated) {
       await onProjectCreated(projectId);
     }
+
     onClose();
     navigate(`/orcamentos/${projectId}`);
   };
 
-  const runCreate = (payload: Parameters<typeof createProjectMutation.mutate>[0]) => {
-    createProjectMutation.mutate(payload, {
-      onSuccess: (data) => void handleSuccess(data.id),
-    });
+  const handleCreate = async (payload: CreateProjectInput) => {
+    try {
+      const project = await createProjectMutation.mutateAsync(payload);
+      await redirectToPlanilha(project);
+    } catch (error) {
+      console.error('[CreateProjectModal] Erro ao criar projeto:', error);
+    }
   };
 
   const handleCreateBlank = () => {
-    runCreate({
+    void handleCreate({
       title: defaults?.title?.trim() || 'Novo Projeto',
       client: clientName,
       status: 'Pendente',
@@ -67,7 +77,7 @@ export const CreateProjectModal: React.FC<Props> = ({
 
   const handleCreateFromTemplate = (template: Template) => {
     const baseTitle = defaults?.title?.trim() || 'Novo Projeto';
-    runCreate({
+    void handleCreate({
       title: `${baseTitle} (Template: ${template.name})`,
       client: clientName,
       status: 'Pendente',
