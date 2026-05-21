@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ListFilter, LayoutGrid, Copy, Trash2, TrendingUp, Clock, CheckCircle2, Flag } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useProjects } from '../hooks/useProjects';
+import { useTemplates } from '../hooks/useResources';
 import { useModal } from '../context/ModalContext';
 import { Project, Template } from '../types';
 import { CreateProjectModal } from '../components/CreateProjectModal';
@@ -11,15 +12,18 @@ import { calculateProjectTotals } from '../lib/calculations';
 import { calculateFinancials } from '../lib/project-utils';
 
 export const Dashboard: React.FC = () => {
-  const { projects, addProject, addProjectVersion, deleteProject, templates, updateProject, refreshData } = useAppContext();
+  const {
+    projects = [],
+    createProjectMutation,
+    addVersionMutation,
+    deleteProjectMutation,
+    updateProjectMutation,
+  } = useProjects();
+  const { templates = [] } = useTemplates();
   const { openModal } = useModal();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [filterStatus, setFilterStatus] = useState<'Todos' | 'Pendente' | 'Aprovado' | 'Concluído'>('Todos');
-
-  useEffect(() => {
-    refreshData();
-  }, []);
 
   const filteredProjects = projects.filter(p => filterStatus === 'Todos' || p.status === filterStatus);
   const pending = projects.filter(p => p.status === 'Pendente');
@@ -53,13 +57,13 @@ export const Dashboard: React.FC = () => {
     e.preventDefault();
     const projectId = e.dataTransfer.getData('projectId');
     if (projectId) {
-      await updateProject(projectId, { status: newStatus as any });
+      await updateProjectMutation.mutateAsync({ id: projectId, updates: { status: newStatus as Project['status'] } });
     }
   };
   
   const createBlankProject = async () => {
     try {
-      const newProject = await addProject({
+      const newProject = await createProjectMutation.mutateAsync({
         title: 'Novo Projeto',
         client: 'Cliente Não Informado',
         status: 'Pendente',
@@ -76,7 +80,7 @@ export const Dashboard: React.FC = () => {
 
   const createFromTemplate = async (selected: Template) => {
     setShowCreateModal(false);
-    const newProject = await addProject({
+    const newProject = await createProjectMutation.mutateAsync({
       title: 'Novo Projeto (Template: ' + selected.name + ')',
       client: 'Cliente Não Informado',
       status: 'Pendente',
@@ -96,7 +100,7 @@ export const Dashboard: React.FC = () => {
       title: 'Excluir Projeto',
       message: 'Tem certeza que deseja arquivar ou excluir este projeto? Esta ação não poderá ser desfeita.',
       onConfirm: () => {
-        deleteProject(id);
+        deleteProjectMutation.mutate(id);
       }
     });
   };
@@ -158,7 +162,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0" onClick={e => e.stopPropagation()}>
             <button 
               onClick={async () => {
-                await addProjectVersion(p.id);
+                await addVersionMutation.mutateAsync({ projectId: p.id });
                 navigate(`/orcamentos/${p.id}`);
               }}
               className="p-1.5 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-md transition-colors"
@@ -329,7 +333,7 @@ export const Dashboard: React.FC = () => {
                           <td className="px-6 py-5 text-right">
                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0" onClick={e => e.stopPropagation()}>
                               <button onClick={async () => {
-                                await addProjectVersion(p.id);
+                                await addVersionMutation.mutateAsync({ projectId: p.id });
                                 navigate(`/orcamentos/${p.id}`);
                               }} className="p-2 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors" title="Duplicar Versão"><Copy size={16} /></button>
                               <button onClick={() => handleDelete(p.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors" title="Excluir"><Trash2 size={16} /></button>

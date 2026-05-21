@@ -1,7 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { LayoutDashboard, LayoutGrid, Database, CalendarDays } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
 import { cn } from '../lib/utils';
 import { UserButton } from '@clerk/clerk-react';
 

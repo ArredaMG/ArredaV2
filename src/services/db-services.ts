@@ -1,682 +1,329 @@
-import { db } from '../db';
-import * as schema from '../db/schema';
-import { eq, inArray, notInArray, and, ne } from 'drizzle-orm';
-import { Project, ProjectVersion, CostGroup, CostItem, Professional, Equipment, Client, Template, Pipeline, Stage, Deal } from '../types';
+import { ProjectVersion, Deal, Client, Professional, Equipment, Template, Project, Pipeline, CostGroup } from '../types';
 
-export const fetchAllData = async () => {
-  const [clientsData, professionalsData, equipmentsData, templatesData, projectsData] = await Promise.all([
-    db.query.clients.findMany(),
-    db.query.professionals.findMany(),
-    db.query.equipments.findMany(),
-    db.query.templates.findMany(),
-    db.query.projects.findMany({
-      with: {
-        client: true,
-        versions: {
-          with: {
-            groups: {
-              with: {
-                items: true
-              }
-            }
-          }
-        }
-      }
-    })
-  ]);
-
-  return {
-    clients: clientsData,
-    professionals: professionalsData.map(p => ({
-        id: p.id,
-        name: p.name,
-        role: p.role,
-        pix: p.pix || '',
-        dailyRate: p.dailyRate
-    })),
-    equipments: equipmentsData,
-    templates: templatesData,
-    projects: projectsData.map(p => ({
-        id: p.id,
-        title: p.title,
-        client: p.client?.name || 'Cliente não encontrado',
-        status: p.status as any,
-        projectNumber: p.projectNumber,
-        startDate: p.startDate ? p.startDate.toISOString().split('T')[0] : undefined,
-        endDate: p.endDate ? p.endDate.toISOString().split('T')[0] : undefined,
-        recordingDates: Array.isArray(p.recordingDates) ? p.recordingDates : (typeof p.recordingDates === 'string' ? JSON.parse(p.recordingDates) : []),
-        createdAt: p.createdAt,
-        versions: p.versions.map(v => ({
-            id: v.id,
-            name: v.name,
-            date: v.date,
-            defaultTax: v.defaultTax,
-            defaultMargin: v.defaultMargin,
-            propostaData: typeof (v as any).propostaData === 'string' ? JSON.parse((v as any).propostaData) : ((v as any).propostaData ?? undefined),
-            groups: v.groups ? v.groups.map(g => ({
-              id: g.id,
-              name: g.name,
-              margin: g.margin ?? undefined,
-              isActive: g.isActive,
-              items: g.items ? g.items.map(i => ({
-                id: i.id,
-                role: i.role ?? undefined,
-                name: i.name,
-                quantity: i.quantity,
-                days: i.days,
-                unitCost: i.unitCost,
-                tax: i.tax ?? undefined,
-                isInHouse: i.isInHouse,
-                customMargin: i.customMargin ?? undefined,
-                executedCost: i.executedCost ?? undefined,
-                receiptLink: i.receiptLink ?? undefined,
-                category: i.category ?? undefined
-              })) : []
-            })) : []
-        }))
-    }))
-  };
+export type FetchAllDataResult = {
+  clients: Client[];
+  professionals: Professional[];
+  equipments: Equipment[];
+  templates: Template[];
+  projects: Project[];
 };
 
-export const loadVersionData = async (versionId: string) => {
-  const groups = await db.query.costGroups.findMany({
-    where: eq(schema.costGroups.versionId, versionId),
-    with: {
-      items: true
-    }
+async function apiFetch<T>(url: string, token: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
   });
 
-  return groups.map(g => ({
-    id: g.id,
-    name: g.name,
-    margin: g.margin ?? undefined,
-    isActive: g.isActive,
-    items: g.items.map(i => ({
-      id: i.id,
-      role: i.role ?? undefined,
-      name: i.name,
-      quantity: i.quantity,
-      days: i.days,
-      unitCost: i.unitCost,
-      tax: i.tax ?? undefined,
-      isInHouse: i.isInHouse,
-      customMargin: i.customMargin ?? undefined,
-      executedCost: i.executedCost ?? undefined,
-      receiptLink: i.receiptLink ?? undefined,
-      category: i.category ?? undefined
-    }))
-  }));
-};
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || 'Erro na requisição.');
+  }
 
-export async function isProjectNumberTaken(projectNumber: number, excludeProjectId?: string): Promise<boolean> {
-  const existing = await db.select()
-    .from(schema.projects)
-    .where(and(
-      eq(schema.projects.projectNumber, projectNumber),
-      excludeProjectId ? ne(schema.projects.id, excludeProjectId) : undefined
-    ))
-    .limit(1);
-  return existing.length > 0;
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    const preview = (await res.text()).slice(0, 200);
+    throw new Error(
+      `Resposta inválida da API (${res.status}). Esperado JSON, recebido: ${contentType || 'sem content-type'}. ` +
+        `Verifique se o backend Express está rodando e se o proxy /api aponta para a porta correta. Preview: ${preview}`
+    );
+  }
+
+  return res.json();
 }
 
-export const createProject = async (projectData: any) => {
-  return await db.transaction(async (tx) => {
-    const [newProject] = await tx.insert(schema.projects).values({
-      id: projectData.id,
-      title: projectData.title,
-      clientId: projectData.clientId,
-      status: projectData.status,
-      projectNumber: projectData.projectNumber || 0
-    }).returning();
+// ── Leitura ───────────────────────────────────────────────────────────────────
 
-    if (!newProject) throw new Error('Failed to insert project');
-
-    const version = projectData.versions[0];
-    const [newVersion] = await tx.insert(schema.projectVersions).values({
-      id: version.id,
-      projectId: newProject.id,
-      name: version.name,
-      date: version.date,
-      defaultTax: version.defaultTax,
-      defaultMargin: version.defaultMargin
-    }).returning();
-
-    if (!newVersion) throw new Error('Failed to insert project version');
-
-    return { ...newProject, versions: [{ ...newVersion, groups: [] }] };
-  });
+export const fetchAllData = async (token: string): Promise<FetchAllDataResult> => {
+  return apiFetch<FetchAllDataResult>('/api/db/all', token);
 };
 
-export const updateProject = async (id: string, updates: any) => {
-    return await db.transaction(async (tx) => {
-        const safeUpdates = { ...updates };
-
-        if ('recordingDates' in safeUpdates) {
-          safeUpdates.recordingDates = Array.isArray(safeUpdates.recordingDates) 
-            ? safeUpdates.recordingDates 
-            : [];
-        }
-
-        const dbUpdates: any = {};
-        if (safeUpdates.title) dbUpdates.title = safeUpdates.title;
-        if (safeUpdates.status) dbUpdates.status = safeUpdates.status;
-        if (safeUpdates.clientId) dbUpdates.clientId = safeUpdates.clientId;
-        if (safeUpdates.projectNumber !== undefined) dbUpdates.projectNumber = safeUpdates.projectNumber;
-
-        if ('startDate' in safeUpdates) {
-          dbUpdates.startDate = safeUpdates.startDate ? new Date(safeUpdates.startDate) : null;
-        }
-        if ('endDate' in safeUpdates) {
-          dbUpdates.endDate = safeUpdates.endDate ? new Date(safeUpdates.endDate) : null;
-        }
-        if ('recordingDates' in safeUpdates) {
-          dbUpdates.recordingDates = safeUpdates.recordingDates;
-        }
-
-        if (Object.keys(dbUpdates).length > 0) {
-            console.log('[DB] updateProject payload:', JSON.stringify(dbUpdates, null, 2));
-            await tx.update(schema.projects).set(dbUpdates).where(eq(schema.projects.id, id));
-        }
-
-        // Upsert the entire tree if versions are provided
-        if (safeUpdates.versions && Array.isArray(safeUpdates.versions)) {
-            const keptVersionIds = safeUpdates.versions.filter((v: any) => v.id).map((v: any) => v.id);
-
-            for (const version of safeUpdates.versions) {
-                await tx.insert(schema.projectVersions).values({
-                    id: version.id,
-                    projectId: id,
-                    name: version.name,
-                    date: version.date,
-                    defaultTax: version.defaultTax,
-                    defaultMargin: version.defaultMargin,
-                    propostaData: version.propostaData
-                }).onConflictDoUpdate({
-                    target: schema.projectVersions.id,
-                    set: {
-                        name: version.name,
-                        date: version.date,
-                        defaultTax: version.defaultTax,
-                        defaultMargin: version.defaultMargin,
-                        propostaData: version.propostaData
-                    }
-                });
-
-                if (version.groups && Array.isArray(version.groups)) {
-                    const keptGroupIds = version.groups.filter((g: any) => g.id).map((g: any) => g.id);
-
-                    for (const group of version.groups) {
-                        await tx.insert(schema.costGroups).values({
-                            id: group.id,
-                            versionId: version.id,
-                            name: group.name,
-                            margin: group.margin,
-                            isActive: group.isActive
-                        }).onConflictDoUpdate({
-                            target: schema.costGroups.id,
-                            set: { name: group.name, margin: group.margin, isActive: group.isActive }
-                        });
-
-                        if (group.items && Array.isArray(group.items)) {
-                            const keptItemIds = group.items.filter((i: any) => i.id).map((i: any) => i.id);
-
-                            for (const item of group.items) {
-                                await tx.insert(schema.costItems).values({
-                                    id: item.id,
-                                    groupId: group.id,
-                                    role: item.role,
-                                    name: item.name,
-                                    quantity: item.quantity,
-                                    days: item.days,
-                                    unitCost: item.unitCost,
-                                    tax: item.tax,
-                                    isInHouse: item.isInHouse,
-                                    customMargin: item.customMargin,
-                                    executedCost: item.executedCost,
-                                    receiptLink: item.receiptLink,
-                                    category: item.category
-                                }).onConflictDoUpdate({
-                                    target: schema.costItems.id,
-                                    set: {
-                                        role: item.role,
-                                        name: item.name,
-                                        quantity: item.quantity,
-                                        days: item.days,
-                                        unitCost: item.unitCost,
-                                        tax: item.tax,
-                                        isInHouse: item.isInHouse,
-                                        customMargin: item.customMargin,
-                                        executedCost: item.executedCost,
-                                        receiptLink: item.receiptLink,
-                                        category: item.category
-                                    }
-                                });
-                            }
-
-                            // Limpeza com Mira a Laser para Items
-                            if (keptItemIds.length > 0) {
-                                await tx.delete(schema.costItems)
-                                    .where(
-                                        and(
-                                            eq(schema.costItems.groupId, group.id),
-                                            notInArray(schema.costItems.id, keptItemIds)
-                                        )
-                                    );
-                            } else {
-                                await tx.delete(schema.costItems)
-                                    .where(eq(schema.costItems.groupId, group.id));
-                            }
-                        }
-                    }
-
-                    // Limpeza com Mira a Laser para Groups
-                    if (keptGroupIds.length > 0) {
-                        await tx.delete(schema.costGroups)
-                            .where(
-                                and(
-                                    eq(schema.costGroups.versionId, version.id),
-                                    notInArray(schema.costGroups.id, keptGroupIds)
-                                )
-                            );
-                    } else {
-                        await tx.delete(schema.costGroups)
-                            .where(eq(schema.costGroups.versionId, version.id));
-                    }
-                }
-            }
-
-            // Limpeza com Mira a Laser para Versions
-            if (keptVersionIds.length > 0) {
-                await tx.delete(schema.projectVersions)
-                    .where(
-                        and(
-                            eq(schema.projectVersions.projectId, id),
-                            notInArray(schema.projectVersions.id, keptVersionIds)
-                        )
-                    );
-            } else {
-                await tx.delete(schema.projectVersions)
-                    .where(eq(schema.projectVersions.projectId, id));
-            }
-        }
-
-        const updatedProject = await tx.query.projects.findFirst({
-            where: eq(schema.projects.id, id),
-            with: {
-                client: true,
-                versions: {
-                    with: {
-                        groups: {
-                            with: {
-                                items: true
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        if (!updatedProject) return null;
-
-        return {
-            id: updatedProject.id,
-            title: updatedProject.title,
-            client: updatedProject.client?.name || 'Cliente não encontrado',
-            status: updatedProject.status as any,
-            projectNumber: updatedProject.projectNumber,
-            startDate: updatedProject.startDate ? updatedProject.startDate.toISOString().split('T')[0] : undefined,
-            endDate: updatedProject.endDate ? updatedProject.endDate.toISOString().split('T')[0] : undefined,
-            recordingDates: Array.isArray(updatedProject.recordingDates) ? updatedProject.recordingDates : (typeof updatedProject.recordingDates === 'string' ? JSON.parse(updatedProject.recordingDates) : []),
-            createdAt: updatedProject.createdAt,
-            versions: updatedProject.versions.map(v => ({
-                id: v.id,
-                name: v.name,
-                date: v.date,
-                defaultTax: v.defaultTax,
-                defaultMargin: v.defaultMargin,
-                propostaData: (v as any).propostaData ?? undefined,
-                groups: v.groups ? v.groups.map(g => ({
-                    id: g.id,
-                    name: g.name,
-                    margin: g.margin ?? undefined,
-                    isActive: g.isActive,
-                    items: g.items ? g.items.map(i => ({
-                        id: i.id,
-                        role: i.role ?? undefined,
-                        name: i.name,
-                        quantity: i.quantity,
-                        days: i.days,
-                        unitCost: i.unitCost,
-                        tax: i.tax ?? undefined,
-                        isInHouse: i.isInHouse,
-                        customMargin: i.customMargin ?? undefined,
-                        executedCost: i.executedCost ?? undefined,
-                        receiptLink: i.receiptLink ?? undefined,
-                        category: i.category ?? undefined
-                    })) : []
-                })) : []
-            }))
-        };
-    });
+export const loadVersionData = async (versionId: string, token: string): Promise<CostGroup[]> => {
+  return apiFetch<CostGroup[]>(`/api/db/version/${encodeURIComponent(versionId)}`, token);
 };
 
-export const deleteProject = async (id: string) => {
-    await db.delete(schema.projects).where(eq(schema.projects.id, id));
+export const fetchCRMData = async (token: string): Promise<Pipeline[]> => {
+  return apiFetch<Pipeline[]>('/api/db/crm', token);
 };
 
-export const syncVersionWithDb = async (version: ProjectVersion) => {
-  return await db.transaction(async (tx) => {
-    await tx.update(schema.projectVersions).set({
-      name: version.name,
-      date: version.date,
-      defaultTax: version.defaultTax,
-      defaultMargin: version.defaultMargin,
-      propostaData: version.propostaData
-    }).where(eq(schema.projectVersions.id, version.id));
-
-    const keptGroupIds = version.groups.filter(g => g.id).map(g => g.id);
-
-    for (const group of version.groups) {
-      await tx.insert(schema.costGroups).values({
-        id: group.id,
-        versionId: version.id,
-        name: group.name,
-        margin: group.margin,
-        isActive: group.isActive
-      }).onConflictDoUpdate({
-        target: schema.costGroups.id,
-        set: { name: group.name, margin: group.margin, isActive: group.isActive }
-      });
-
-      const keptItemIds = group.items.filter(i => i.id).map(i => i.id);
-
-      for (const item of group.items) {
-        await tx.insert(schema.costItems).values({
-          id: item.id,
-          groupId: group.id,
-          role: item.role,
-          name: item.name,
-          quantity: item.quantity,
-          days: item.days,
-          unitCost: item.unitCost,
-          tax: item.tax,
-          isInHouse: item.isInHouse,
-          customMargin: item.customMargin,
-          executedCost: item.executedCost,
-          receiptLink: item.receiptLink,
-          category: item.category
-        }).onConflictDoUpdate({
-          target: schema.costItems.id,
-          set: {
-            role: item.role,
-            name: item.name,
-            quantity: item.quantity,
-            days: item.days,
-            unitCost: item.unitCost,
-            tax: item.tax,
-            isInHouse: item.isInHouse,
-            customMargin: item.customMargin,
-            executedCost: item.executedCost,
-            receiptLink: item.receiptLink,
-            category: item.category
-          }
-        });
-      }
-
-      // Limpeza com Mira a Laser para Items
-      if (keptItemIds.length > 0) {
-          await tx.delete(schema.costItems)
-              .where(
-                  and(
-                      eq(schema.costItems.groupId, group.id),
-                      notInArray(schema.costItems.id, keptItemIds)
-                  )
-              );
-      } else {
-          await tx.delete(schema.costItems)
-              .where(eq(schema.costItems.groupId, group.id));
-      }
-    }
-
-    // Limpeza com Mira a Laser para Groups
-    if (keptGroupIds.length > 0) {
-        await tx.delete(schema.costGroups)
-            .where(
-                and(
-                    eq(schema.costGroups.versionId, version.id),
-                    notInArray(schema.costGroups.id, keptGroupIds)
-                )
-            );
-    } else {
-        await tx.delete(schema.costGroups)
-            .where(eq(schema.costGroups.versionId, version.id));
-    }
-
-    const dbVersion = await tx.query.projectVersions.findFirst({
-        where: eq(schema.projectVersions.id, version.id),
-        columns: { projectId: true }
-    });
-
-    if (!dbVersion) return null;
-
-    const updatedProject = await tx.query.projects.findFirst({
-        where: eq(schema.projects.id, dbVersion.projectId),
-        with: {
-            client: true,
-            versions: {
-                with: {
-                    groups: {
-                        with: {
-                            items: true
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    if (!updatedProject) return null;
-
-    return {
-        id: updatedProject.id,
-        title: updatedProject.title,
-        client: updatedProject.client?.name || 'Cliente não encontrado',
-        status: updatedProject.status as any,
-        projectNumber: updatedProject.projectNumber,
-        startDate: updatedProject.startDate ? updatedProject.startDate.toISOString().split('T')[0] : undefined,
-        endDate: updatedProject.endDate ? updatedProject.endDate.toISOString().split('T')[0] : undefined,
-        recordingDates: Array.isArray(updatedProject.recordingDates) ? updatedProject.recordingDates : (typeof updatedProject.recordingDates === 'string' ? JSON.parse(updatedProject.recordingDates) : []),
-        createdAt: updatedProject.createdAt,
-        versions: updatedProject.versions.map(v => ({
-            id: v.id,
-            name: v.name,
-            date: v.date,
-            defaultTax: v.defaultTax,
-            defaultMargin: v.defaultMargin,
-            propostaData: typeof (v as any).propostaData === 'string' ? JSON.parse((v as any).propostaData) : ((v as any).propostaData ?? undefined),
-            groups: v.groups ? v.groups.map(g => ({
-                id: g.id,
-                name: g.name,
-                margin: g.margin ?? undefined,
-                isActive: g.isActive,
-                items: g.items ? g.items.map(i => ({
-                    id: i.id,
-                    role: i.role ?? undefined,
-                    name: i.name,
-                    quantity: i.quantity,
-                    days: i.days,
-                    unitCost: i.unitCost,
-                    tax: i.tax ?? undefined,
-                    isInHouse: i.isInHouse,
-                    customMargin: i.customMargin ?? undefined,
-                    executedCost: i.executedCost ?? undefined,
-                    receiptLink: i.receiptLink ?? undefined,
-                    category: i.category ?? undefined
-                })) : []
-            })) : []
-        }))
-    };
-  });
+export const fetchClients = async (token: string) => {
+  return apiFetch('/api/db/clients', token);
 };
 
-export const addProfessional = async (prof: any) => {
-    await db.insert(schema.professionals).values(prof);
+export const fetchProfessionals = async (token: string) => {
+  return apiFetch('/api/db/professionals', token);
 };
 
-export const updateProfessional = async (id: string, updates: any) => {
-    await db.update(schema.professionals).set(updates).where(eq(schema.professionals.id, id));
+export const fetchEquipments = async (token: string) => {
+  return apiFetch('/api/db/equipments', token);
 };
 
-export const deleteProfessional = async (id: string) => {
-    await db.delete(schema.professionals).where(eq(schema.professionals.id, id));
+export const fetchTemplates = async (token: string) => {
+  return apiFetch('/api/db/templates', token);
 };
 
-export const addEquipment = async (equip: any) => {
-    await db.insert(schema.equipments).values(equip);
+export const fetchProjects = async (token: string): Promise<Project[]> => {
+  return apiFetch<Project[]>('/api/db/projects', token);
 };
 
-export const updateEquipment = async (id: string, updates: any) => {
-    await db.update(schema.equipments).set(updates).where(eq(schema.equipments.id, id));
-};
+export async function isProjectNumberTaken(
+  projectNumber: number,
+  excludeProjectId: string | undefined,
+  token: string
+): Promise<boolean> {
+  const params = new URLSearchParams({ projectNumber: String(projectNumber) });
+  if (excludeProjectId) params.set('excludeProjectId', excludeProjectId);
+  const { taken } = await apiFetch<{ taken: boolean }>(
+    `/api/db/projects/check-number?${params}`,
+    token
+  );
+  return taken;
+}
 
-export const deleteEquipment = async (id: string) => {
-    await db.delete(schema.equipments).where(eq(schema.equipments.id, id));
-};
+// ── Projects ──────────────────────────────────────────────────────────────────
 
-export const addClient = async (client: any) => {
-    await db.insert(schema.clients).values({
-        id: client.id,
-        name: client.name || client.nome,
-        document: client.document || client.cnpj,
-        contactName: client.contactName,
-        contactRole: client.contactRole,
-        leadSource: client.leadSource,
-        contacts: client.contacts || [],
-        decisores: client.decisores || []
-    });
-};
-
-export const updateClient = async (id: string, updates: any) => {
-    await db.update(schema.clients).set(updates).where(eq(schema.clients.id, id));
-};
-
-export const deleteClient = async (id: string) => {
-    await db.delete(schema.clients).where(eq(schema.clients.id, id));
-};
-
-export const addTemplate = async (template: any) => {
-    await db.insert(schema.templates).values(template);
-};
-
-export const updateTemplate = async (id: string, updates: any) => {
-    await db.update(schema.templates).set(updates).where(eq(schema.templates.id, id));
-};
-
-export const deleteTemplate = async (id: string) => {
-    await db.delete(schema.templates).where(eq(schema.templates.id, id));
-};
-
-export const addProjectVersion = async (version: any) => {
-    await db.insert(schema.projectVersions).values(version);
-};
-
-export const deleteProjectVersion = async (id: string) => {
-    await db.delete(schema.projectVersions).where(eq(schema.projectVersions.id, id));
-};
-
-export const fetchCRMData = async () => {
-  return await db.query.pipelines.findMany({
-    with: {
-      stages: true,
-      deals: {
-        with: {
-          client: true
-        }
-      }
-    }
-  });
-};
-
-export const createPipeline = async (pipeline: { id: string; name: string }) => {
-  await db.insert(schema.pipelines).values(pipeline);
-};
-
-export const createStage = async (stage: { id: string; pipelineId: string; name: string; order: number; color: string }) => {
-  await db.insert(schema.stages).values(stage);
-};
-
-export const createDeal = async (deal: {
+export type CreateProjectResult = {
   id: string;
-  clientId: string;
-  pipelineId: string;
-  stageId: string;
-  projectId?: string;
   title: string;
-  value: number;
-  status: 'open' | 'won' | 'lost';
-  nextActionDate?: Date | null;
-  lossReason?: string | null;
-  notes?: string | null;
-  linkedDecisores?: string[] | null;
-}) => {
-  await db.insert(schema.deals).values({
-    id: deal.id,
-    clientId: deal.clientId,
-    pipelineId: deal.pipelineId,
-    stageId: deal.stageId,
-    ...(deal.projectId ? { projectId: deal.projectId } : {}),
-    title: deal.title,
-    value: deal.value,
-    status: deal.status,
-    nextActionDate: deal.nextActionDate,
-    lossReason: deal.lossReason ?? null,
-    notes: deal.notes ?? null,
-    linkedDecisores: deal.linkedDecisores ?? [],
+  status: string;
+  projectNumber: number;
+  createdAt: Date | string;
+  versions: Array<{
+    id: string;
+    name: string;
+    date: string;
+    defaultTax: number;
+    defaultMargin: number;
+    groups: [];
+  }>;
+};
+
+export const createProject = async (projectData: any, token: string): Promise<CreateProjectResult> => {
+  return apiFetch<CreateProjectResult>('/api/db/projects', token, {
+    method: 'POST',
+    body: JSON.stringify(projectData),
   });
 };
 
-export const updateDealStage = async (dealId: string, stageId: string) => {
-  await db.update(schema.deals).set({ stageId, updatedAt: new Date() }).where(eq(schema.deals.id, dealId));
+export const updateProject = async (id: string, updates: any, token: string) => {
+  return apiFetch(`/api/db/projects/${encodeURIComponent(id)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
 };
 
-export const updateDeal = async (dealId: string, updates: Partial<Deal>) => {
-  const dbUpdates: any = { ...updates };
-  if (updates.nextActionDate !== undefined) {
-    dbUpdates.nextActionDate = updates.nextActionDate ? new Date(updates.nextActionDate) : null;
-  }
-  if (updates.projectId !== undefined) {
-    dbUpdates.projectId = updates.projectId ? updates.projectId : null;
-  }
-  if ('lossReason' in updates) dbUpdates.lossReason = updates.lossReason ?? null;
-  if ('notes' in updates) dbUpdates.notes = updates.notes ?? null;
-  if ('linkedDecisores' in updates) dbUpdates.linkedDecisores = updates.linkedDecisores ?? [];
-  dbUpdates.updatedAt = new Date();
-  await db.update(schema.deals).set(dbUpdates).where(eq(schema.deals.id, dealId));
+export const deleteProject = async (id: string, token: string) => {
+  return apiFetch(`/api/db/projects/${encodeURIComponent(id)}`, token, {
+    method: 'DELETE',
+  });
 };
 
-export const deleteDeal = async (dealId: string) => {
-  await db.delete(schema.deals).where(eq(schema.deals.id, dealId));
+export const syncVersionWithDb = async (version: ProjectVersion, token: string) => {
+  return apiFetch('/api/db/projects/sync-version', token, {
+    method: 'POST',
+    body: JSON.stringify(version),
+  });
 };
 
-export const updatePipeline = async (id: string, name: string) => {
-  await db.update(schema.pipelines).set({ name, updatedAt: new Date() }).where(eq(schema.pipelines.id, id));
+export const addProjectVersion = async (version: any, token: string) => {
+  return apiFetch('/api/db/project-versions', token, {
+    method: 'POST',
+    body: JSON.stringify(version),
+  });
 };
 
-export const deletePipeline = async (id: string) => {
-  await db.delete(schema.pipelines).where(eq(schema.pipelines.id, id));
+export const deleteProjectVersion = async (id: string, token: string) => {
+  return apiFetch(`/api/db/project-versions/${encodeURIComponent(id)}`, token, {
+    method: 'DELETE',
+  });
 };
 
-export const updateDealByProjectId = async (projectId: string, updates: Partial<Deal>) => {
-  const dbUpdates: any = { ...updates, updatedAt: new Date() };
-  await db.update(schema.deals).set(dbUpdates).where(eq(schema.deals.projectId, projectId));
+// ── Professionals ─────────────────────────────────────────────────────────────
+
+export const addProfessional = async (prof: any, token: string) => {
+  return apiFetch('/api/db/professionals', token, {
+    method: 'POST',
+    body: JSON.stringify(prof),
+  });
 };
 
-export const updateStage = async (id: string, name: string) => {
-  await db.update(schema.stages).set({ name }).where(eq(schema.stages.id, id));
+export const updateProfessional = async (id: string, updates: any, token: string) => {
+  return apiFetch(`/api/db/professionals/${encodeURIComponent(id)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
 };
 
-export const deleteStage = async (id: string) => {
-  await db.delete(schema.stages).where(eq(schema.stages.id, id));
+export const deleteProfessional = async (id: string, token: string) => {
+  return apiFetch(`/api/db/professionals/${encodeURIComponent(id)}`, token, {
+    method: 'DELETE',
+  });
 };
 
+// ── Equipments ────────────────────────────────────────────────────────────────
 
+export const addEquipment = async (equip: any, token: string) => {
+  return apiFetch('/api/db/equipments', token, {
+    method: 'POST',
+    body: JSON.stringify(equip),
+  });
+};
+
+export const updateEquipment = async (id: string, updates: any, token: string) => {
+  return apiFetch(`/api/db/equipments/${encodeURIComponent(id)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+};
+
+export const deleteEquipment = async (id: string, token: string) => {
+  return apiFetch(`/api/db/equipments/${encodeURIComponent(id)}`, token, {
+    method: 'DELETE',
+  });
+};
+
+// ── Clients ───────────────────────────────────────────────────────────────────
+
+export const addClient = async (client: any, token: string) => {
+  return apiFetch('/api/db/clients', token, {
+    method: 'POST',
+    body: JSON.stringify(client),
+  });
+};
+
+export const updateClient = async (id: string, updates: any, token: string) => {
+  return apiFetch(`/api/db/clients/${encodeURIComponent(id)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+};
+
+export const deleteClient = async (id: string, token: string) => {
+  return apiFetch(`/api/db/clients/${encodeURIComponent(id)}`, token, {
+    method: 'DELETE',
+  });
+};
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+
+export const addTemplate = async (template: any, token: string) => {
+  return apiFetch('/api/db/templates', token, {
+    method: 'POST',
+    body: JSON.stringify(template),
+  });
+};
+
+export const updateTemplate = async (id: string, updates: any, token: string) => {
+  return apiFetch(`/api/db/templates/${encodeURIComponent(id)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+};
+
+export const deleteTemplate = async (id: string, token: string) => {
+  return apiFetch(`/api/db/templates/${encodeURIComponent(id)}`, token, {
+    method: 'DELETE',
+  });
+};
+
+// ── CRM: Pipelines, Stages, Deals ─────────────────────────────────────────────
+
+export const createPipeline = async (pipeline: { id: string; name: string }, token: string) => {
+  return apiFetch('/api/db/pipelines', token, {
+    method: 'POST',
+    body: JSON.stringify(pipeline),
+  });
+};
+
+export const updatePipeline = async (id: string, name: string, token: string) => {
+  return apiFetch(`/api/db/pipelines/${encodeURIComponent(id)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ name }),
+  });
+};
+
+export const deletePipeline = async (id: string, token: string) => {
+  return apiFetch(`/api/db/pipelines/${encodeURIComponent(id)}`, token, {
+    method: 'DELETE',
+  });
+};
+
+export const createStage = async (
+  stage: { id: string; pipelineId: string; name: string; order: number; color: string },
+  token: string
+) => {
+  return apiFetch('/api/db/stages', token, {
+    method: 'POST',
+    body: JSON.stringify(stage),
+  });
+};
+
+export const updateStage = async (id: string, name: string, token: string) => {
+  return apiFetch(`/api/db/stages/${encodeURIComponent(id)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ name }),
+  });
+};
+
+export const deleteStage = async (id: string, token: string) => {
+  return apiFetch(`/api/db/stages/${encodeURIComponent(id)}`, token, {
+    method: 'DELETE',
+  });
+};
+
+export const createDeal = async (
+  deal: {
+    id: string;
+    clientId: string;
+    pipelineId: string;
+    stageId: string;
+    projectId?: string;
+    title: string;
+    value: number;
+    status: 'open' | 'won' | 'lost';
+    nextActionDate?: Date | null;
+    lossReason?: string | null;
+    notes?: string | null;
+    linkedDecisores?: string[] | null;
+  },
+  token: string
+) => {
+  return apiFetch('/api/db/deals', token, {
+    method: 'POST',
+    body: JSON.stringify(deal),
+  });
+};
+
+export const updateDealStage = async (dealId: string, stageId: string, token: string) => {
+  return apiFetch(`/api/db/deals/${encodeURIComponent(dealId)}/stage`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ stageId }),
+  });
+};
+
+export const updateDeal = async (dealId: string, updates: Partial<Deal>, token: string) => {
+  return apiFetch(`/api/db/deals/${encodeURIComponent(dealId)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+};
+
+export const updateDealByProjectId = async (projectId: string, updates: Partial<Deal>, token: string) => {
+  return apiFetch(`/api/db/deals/by-project/${encodeURIComponent(projectId)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+};
+
+export const deleteDeal = async (dealId: string, token: string) => {
+  return apiFetch(`/api/db/deals/${encodeURIComponent(dealId)}`, token, {
+    method: 'DELETE',
+  });
+};

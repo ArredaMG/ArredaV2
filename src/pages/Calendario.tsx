@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
+import { useProjects } from '../hooks/useProjects';
 
 export const Calendario: React.FC = () => {
-  const { projects } = useAppContext();
+  const { projects = [] } = useProjects();
   const navigate = useNavigate();
 
   const [currentDate, setCurrentDate] = useState(

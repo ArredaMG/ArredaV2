@@ -8,6 +8,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 let express, cors, google, formidable, fs, path, dotenv, ClerkExpressRequireAuth;
+let drizzle, Pool, eq, and, ne, inArray, notInArray, schema, db;
 try {
   express = require('express');
   cors = require('cors');
@@ -17,19 +18,34 @@ try {
   path = require('path');
   dotenv = require('dotenv');
   ({ ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node'));
+  ({ drizzle } = require('drizzle-orm/neon-serverless'));
+  ({ Pool } = require('@neondatabase/serverless'));
+  ({ eq, and, ne, inArray, notInArray } = require('drizzle-orm'));
+  schema = require('./server/schema.cjs');
 } catch (err) {
   console.error('🚨 [ERRO DE REQUIRE]:', err.message);
 }
 
-// Desativa dotenv na Hostinger, pois as envs vêm do painel
-if (process.env.NODE_ENV !== 'production' && !process.env.DATABASE_URL) {
+// Carrega .env quando variáveis críticas ainda não estão no ambiente (ex.: dev local)
+if (!process.env.DATABASE_URL || !process.env.CLERK_SECRET_KEY) {
   dotenv.config();
-  // Se houver arquivo .env.local, carrega ele explicitamente para garantir as chaves locais no ambiente dev
   dotenv.config({ path: '.env.local' });
 }
 
+const databaseUrl = process.env.DATABASE_URL || process.env.VITE_DATABASE_URL;
+if (databaseUrl) {
+  const pool = new Pool({ connectionString: databaseUrl });
+  db = drizzle(pool, { schema });
+} else {
+  console.warn('⚠️ DATABASE_URL não configurada — rotas /api/db/* indisponíveis.');
+}
+
+if (!process.env.CLERK_SECRET_KEY) {
+  console.warn('⚠️ CLERK_SECRET_KEY ausente — rotas protegidas por Clerk falharão.');
+}
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -263,11 +279,145 @@ app.delete('/api/delete-file/:fileId', ClerkExpressRequireAuth(), async (req, re
   }
 });
 
+// ── Rotas de leitura do banco (Drizzle no servidor) ───────────────────────────
+app.get('/api/db/all', ClerkExpressRequireAuth(), async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Banco de dados não configurado no servidor.' });
+  }
+
+  try {
+    const [clientsData, professionalsData, equipmentsData, templatesData, projectsData] = await Promise.all([
+      db.query.clients.findMany(),
+      db.query.professionals.findMany(),
+      db.query.equipments.findMany(),
+      db.query.templates.findMany(),
+      db.query.projects.findMany({
+        with: {
+          client: true,
+          versions: {
+            with: {
+              groups: {
+                with: {
+                  items: true
+                }
+              }
+            }
+          }
+        }
+      })
+    ]);
+
+    return res.json({
+      clients: clientsData,
+      professionals: professionalsData.map(p => ({
+        id: p.id,
+        name: p.name,
+        role: p.role,
+        pix: p.pix || '',
+        dailyRate: p.dailyRate
+      })),
+      equipments: equipmentsData,
+      templates: templatesData,
+      projects: projectsData.map(p => ({
+        id: p.id,
+        title: p.title,
+        client: p.client?.name || 'Cliente não encontrado',
+        status: p.status,
+        projectNumber: p.projectNumber,
+        startDate: p.startDate ? p.startDate.toISOString().split('T')[0] : undefined,
+        endDate: p.endDate ? p.endDate.toISOString().split('T')[0] : undefined,
+        recordingDates: Array.isArray(p.recordingDates) ? p.recordingDates : (typeof p.recordingDates === 'string' ? JSON.parse(p.recordingDates) : []),
+        createdAt: p.createdAt,
+        versions: p.versions.map(v => ({
+          id: v.id,
+          name: v.name,
+          date: v.date,
+          defaultTax: v.defaultTax,
+          defaultMargin: v.defaultMargin,
+          propostaData: typeof v.propostaData === 'string' ? JSON.parse(v.propostaData) : (v.propostaData ?? undefined),
+          groups: v.groups ? v.groups.map(g => ({
+            id: g.id,
+            name: g.name,
+            margin: g.margin ?? undefined,
+            isActive: g.isActive,
+            items: g.items ? g.items.map(i => ({
+              id: i.id,
+              role: i.role ?? undefined,
+              name: i.name,
+              quantity: i.quantity,
+              days: i.days,
+              unitCost: i.unitCost,
+              tax: i.tax ?? undefined,
+              isInHouse: i.isInHouse,
+              customMargin: i.customMargin ?? undefined,
+              executedCost: i.executedCost ?? undefined,
+              receiptLink: i.receiptLink ?? undefined,
+              category: i.category ?? undefined
+            })) : []
+          })) : []
+        }))
+      }))
+    });
+  } catch (error) {
+    console.error('Erro em GET /api/db/all:', error);
+    return res.status(500).json({ error: 'Erro ao buscar dados.', details: error.message });
+  }
+});
+
+app.get('/api/db/version/:versionId', ClerkExpressRequireAuth(), async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Banco de dados não configurado no servidor.' });
+  }
+
+  const { versionId } = req.params;
+
+  try {
+    const groups = await db.query.costGroups.findMany({
+      where: eq(schema.costGroups.versionId, versionId),
+      with: {
+        items: true
+      }
+    });
+
+    return res.json(groups.map(g => ({
+      id: g.id,
+      name: g.name,
+      margin: g.margin ?? undefined,
+      isActive: g.isActive,
+      items: g.items.map(i => ({
+        id: i.id,
+        role: i.role ?? undefined,
+        name: i.name,
+        quantity: i.quantity,
+        days: i.days,
+        unitCost: i.unitCost,
+        tax: i.tax ?? undefined,
+        isInHouse: i.isInHouse,
+        customMargin: i.customMargin ?? undefined,
+        executedCost: i.executedCost ?? undefined,
+        receiptLink: i.receiptLink ?? undefined,
+        category: i.category ?? undefined
+      }))
+    })));
+  } catch (error) {
+    console.error('Erro em GET /api/db/version/:versionId:', error);
+    return res.status(500).json({ error: 'Erro ao carregar versão.', details: error.message });
+  }
+});
+
+const { registerDbMutationRoutes } = require('./server/db-mutations.cjs');
+registerDbMutationRoutes(app, { db, schema, eq, and, ne, inArray, notInArray, ClerkExpressRequireAuth });
+
 // Servir arquivos estáticos do frontend (CSS, JS, Imagens) gerados pelo Vite
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// Catch-all route para o React Router (SPA)
-app.get('/*splat', (req, res) => {
+// Rotas /api não encontradas → JSON (nunca index.html da SPA)
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Rota de API não encontrada: ${req.method} ${req.originalUrl}` });
+});
+
+// Catch-all para o React Router (SPA) — apenas rotas de interface
+app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

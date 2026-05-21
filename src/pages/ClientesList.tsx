@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Mail, MessageCircle, Instagram, Linkedin, Globe, X, Users, ArrowRight, Trash2, ShieldAlert } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useClients } from '../hooks/useResources';
 import { useModal } from '../context/ModalContext';
 import { cn } from '../lib/utils';
 import { Client } from '../types';
 
 export const ClientesList: React.FC = () => {
-  const { clientes, addClient, deleteClient } = useAppContext();
+  const { clients: clientes, addClientMutation, deleteClientMutation } = useClients();
   const { openModal } = useModal();
   const navigate = useNavigate();
 
@@ -79,7 +79,7 @@ export const ClientesList: React.FC = () => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    await addClient({
+    await addClientMutation.mutateAsync({
       name: name.trim(),
       contactName: contactName.trim() || null,
       contactRole: null,
@@ -96,7 +96,7 @@ export const ClientesList: React.FC = () => {
       title: 'Excluir Cliente',
       message: `Tem certeza que deseja excluir o cliente "${clientName}"? Esta ação não afetará os orçamentos já criados.`,
       onConfirm: () => {
-        deleteClient(id);
+        deleteClientMutation.mutate(id);
       }
     });
   };

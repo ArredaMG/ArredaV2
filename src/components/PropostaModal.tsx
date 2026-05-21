@@ -3,7 +3,7 @@ import { X, Printer, Upload, Eye, Trash2, Plus, Save } from 'lucide-react';
 import { Project, ProjectVersion } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { getGroupMetrics } from '../lib/calculations';
-import { useAppContext } from '../context/AppContext';
+import { useProjects } from '../hooks/useProjects';
 
 interface PropostaModalProps {
   project: Project;
@@ -23,7 +23,7 @@ interface InvestmentLine {
 }
 
 export function PropostaModal({ project, activeVersion, totalClient, clientName, onClose }: PropostaModalProps) {
-  const { updateProjectVersion } = useAppContext();
+  const { updateVersionMutation } = useProjects();
   
   // Config States
   const [logoCliente, setLogoCliente] = useState<string | null>(null);
@@ -216,15 +216,19 @@ ETAPAS DO PROJETO:
         <button 
           onClick={async () => {
             try {
-              await updateProjectVersion(project.id, activeVersion.id, {
-                propostaData: {
-                  briefingTitle,
-                  briefingText,
-                  paymentTerms: formaPagamento,
-                  observations: observacoes,
-                  showSubtotals,
-                  investmentLines
-                }
+              await updateVersionMutation.mutateAsync({
+                projectId: project.id,
+                versionId: activeVersion.id,
+                updates: {
+                  propostaData: {
+                    briefingTitle,
+                    briefingText,
+                    paymentTerms: formaPagamento,
+                    observations: observacoes,
+                    showSubtotals,
+                    investmentLines,
+                  },
+                },
               });
               alert("✅ Dados da O.S. salvos com sucesso!");
             } catch (err) {

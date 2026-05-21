@@ -27,12 +27,15 @@ import {
 import { CreateProjectModal } from '../components/CreateProjectModal';
 import { FileText } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { useAppContext } from '../context/AppContext';
+import { useClients, useTemplates } from '../hooks/useResources';
+import { useProjects } from '../hooks/useProjects';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 import * as dbService from '../services/db-services';
 import { Pipeline, Stage, Deal, Client, Template } from '../types';
 import { calculateFinancials } from '../lib/project-utils';
 import { cn } from '../lib/utils';
+import { KanbanBoard } from '../components/crm';
 
 const detectContactType = (val: string) => {
   const value = val.trim().toLowerCase();
@@ -55,8 +58,17 @@ const getContactIcon = (type: string) => {
 };
 
 export const CRM: React.FC = () => {
-  const { clientes, addProject, templates, refreshData, updateClient, projects } = useAppContext();
+  const { projects = [], createProjectMutation } = useProjects();
+  const { clients: clientes = [], updateClientMutation } = useClients();
+  const { templates = [] } = useTemplates();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const navigate = useNavigate();
+
+  const requireToken = async (): Promise<string> => {
+    const token = await getToken();
+    if (!token) throw new Error('Não autenticado');
+    return token;
+  };
   
   // Local state
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -104,8 +116,9 @@ export const CRM: React.FC = () => {
   const loadCRMData = async (shouldLoadSilence = false) => {
     if (!shouldLoadSilence) setIsLoading(true);
     try {
-      const data = await dbService.fetchCRMData();
-      
+      const token = await requireToken();
+      const data = await dbService.fetchCRMData(token);
+
       if (data.length === 0) {
         // Need to run Seeder
         await seedDefaultPipeline();
@@ -124,20 +137,22 @@ export const CRM: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
     loadCRMData();
-  }, []);
+  }, [isLoaded, isSignedIn]);
 
   // Seeder for default pipeline
   const seedDefaultPipeline = async () => {
     setIsSeeding(true);
     try {
+      const token = await requireToken();
       const pipelineId = uuidv4();
       
       // 1. Create Default Pipeline
       await dbService.createPipeline({
         id: pipelineId,
         name: 'Prospecção Padrão'
-      });
+      }, token);
 
       // 2. Create Default Stages
       const defaultStages = [
@@ -155,11 +170,11 @@ export const CRM: React.FC = () => {
           name: stage.name,
           color: stage.color,
           order: stage.order
-        });
+        }, token);
       }
 
       // Reload CRM data
-      const data = await dbService.fetchCRMData();
+      const data = await dbService.fetchCRMData(token);
       setPipelines(data as Pipeline[]);
       setCurrentPipelineId(pipelineId);
     } catch (error) {
@@ -214,11 +229,12 @@ export const CRM: React.FC = () => {
     setNewPipelineName('');
 
     try {
+      const token = await requireToken();
       // 1. Save pipeline
       await dbService.createPipeline({
         id: pipelineId,
         name: newPipelineName
-      });
+      }, token);
 
       // 2. Save default stages
       for (const stage of defaultStages) {
@@ -228,7 +244,7 @@ export const CRM: React.FC = () => {
           name: stage.name,
           color: stage.color,
           order: stage.order
-        });
+        }, token);
       }
 
       // Reload from database to get real IDs
@@ -257,7 +273,8 @@ export const CRM: React.FC = () => {
     setIsEditPipelineModalOpen(false);
 
     try {
-      await dbService.updatePipeline(editingPipelineId, editingPipelineName);
+      const token = await requireToken();
+      await dbService.updatePipeline(editingPipelineId, editingPipelineName, token);
       await loadCRMData(true);
     } catch (error) {
       console.error('Error updating pipeline name:', error);
@@ -286,7 +303,8 @@ export const CRM: React.FC = () => {
     }
 
     try {
-      await dbService.deletePipeline(pipelineId);
+      const token = await requireToken();
+      await dbService.deletePipeline(pipelineId, token);
       await loadCRMData(true);
     } catch (error) {
       console.error('Error deleting pipeline:', error);
@@ -375,7 +393,8 @@ export const CRM: React.FC = () => {
     }));
 
     try {
-      await dbService.updateDealStage(dealId, targetStageId);
+      const token = await requireToken();
+      await dbService.updateDealStage(dealId, targetStageId, token);
     } catch (error) {
       console.error('Failed to update deal stage in database:', error);
       // Rollback
@@ -438,7 +457,8 @@ export const CRM: React.FC = () => {
     resetForm();
 
     try {
-      await dbService.createDeal(dealPayload);
+      const token = await requireToken();
+      await dbService.createDeal(dealPayload, token);
       // Silence load to ensure database state
       await loadCRMData(true);
     } catch (error) {
@@ -498,7 +518,8 @@ export const CRM: React.FC = () => {
     resetForm();
 
     try {
-      await dbService.updateDeal(editingDeal.id, updates);
+      const token = await requireToken();
+      await dbService.updateDeal(editingDeal.id, updates, token);
       await loadCRMData(true);
     } catch (error) {
       console.error('Error updating deal:', error);
@@ -510,7 +531,8 @@ export const CRM: React.FC = () => {
   const handleDeleteDeal = async (dealId: string) => {
     if (!window.confirm('Deseja excluir esta oportunidade?')) return;
     try {
-      await dbService.deleteDeal(dealId);
+      const token = await requireToken();
+      await dbService.deleteDeal(dealId, token);
       await loadCRMData(true);
     } catch (error) {
       console.error('Error deleting deal:', error);
@@ -522,8 +544,9 @@ export const CRM: React.FC = () => {
     e.preventDefault();
     if (!stageNameInput.trim()) return;
     
+    const token = await requireToken();
     if (editingStage) {
-      await dbService.updateStage(editingStage.id, stageNameInput);
+      await dbService.updateStage(editingStage.id, stageNameInput, token);
     } else {
       const newOrder = sortedStages.length > 0 ? sortedStages[sortedStages.length - 1].order + 1 : 0;
       await dbService.createStage({
@@ -532,7 +555,7 @@ export const CRM: React.FC = () => {
         name: stageNameInput,
         color: '#9ca3af',
         order: newOrder
-      });
+      }, token);
     }
     setIsStageModalOpen(false);
     setStageNameInput('');
@@ -542,14 +565,15 @@ export const CRM: React.FC = () => {
 
   const handleDeleteStage = async (id: string, name: string) => {
     if (!confirm(`Excluir a coluna "${name}"? Todas as oportunidades dentro dela serão PERDIDAS!`)) return;
-    await dbService.deleteStage(id);
+    const token = await requireToken();
+    await dbService.deleteStage(id, token);
     await loadCRMData(true);
   };
   // Create a blank project from a deal
   const createBlankProjectFromDeal = async () => {
     if (!dealToCreateProject) return;
     const clientName = dealToCreateProject.client?.name || clientes.find(c => c.id === dealToCreateProject.clientId)?.name || 'Cliente Não Informado';
-    const newProject = await addProject({
+    const newProject = await createProjectMutation.mutateAsync({
       title: dealToCreateProject.title,
       client: clientName,
       status: 'Pendente',
@@ -557,7 +581,8 @@ export const CRM: React.FC = () => {
       defaultMargin: 15,
       groups: []
     });
-    await dbService.updateDeal(dealToCreateProject.id, { projectId: newProject.id });
+    const token = await requireToken();
+    await dbService.updateDeal(dealToCreateProject.id, { projectId: newProject.id }, token);
     setShowCreateProjectModal(false);
     setDealToCreateProject(null);
     navigate(`/orcamentos/${newProject.id}`);
@@ -567,7 +592,7 @@ export const CRM: React.FC = () => {
   const createFromTemplateFromDeal = async (selected: Template) => {
     if (!dealToCreateProject) return;
     const clientName = dealToCreateProject.client?.name || clientes.find(c => c.id === dealToCreateProject.clientId)?.name || 'Cliente Não Informado';
-    const newProject = await addProject({
+    const newProject = await createProjectMutation.mutateAsync({
       title: `${dealToCreateProject.title} (Template: ${selected.name})`,
       client: clientName,
       status: 'Pendente',
@@ -579,7 +604,8 @@ export const CRM: React.FC = () => {
         items: g.items.map(i => ({ ...i, id: uuidv4() }))
       }))
     });
-    await dbService.updateDeal(dealToCreateProject.id, { projectId: newProject.id });
+    const token = await requireToken();
+    await dbService.updateDeal(dealToCreateProject.id, { projectId: newProject.id }, token);
     setShowCreateProjectModal(false);
     setDealToCreateProject(null);
     navigate(`/orcamentos/${newProject.id}`);
@@ -838,252 +864,32 @@ export const CRM: React.FC = () => {
       </header>
 
       {/* Main Kanban Board (Scrollable Container) */}
-      <div className="flex-1 overflow-x-auto p-6 scrollbar-thin">
-        <div className="flex gap-5 h-full items-start min-w-[1200px] select-none pb-4">
-          {sortedStages.map(stage => {
-            const stageDeals = dealsList.filter(d => d.stageId === stage.id) || [];
-            const stageTotalSum = stageDeals.reduce((sum, d) => sum + getDealValue(d), 0);
-            const isDragTarget = draggedOverStageId === stage.id;
-
-            return (
-              <div 
-                key={stage.id}
-                className="w-80 flex-shrink-0 flex flex-col bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-gray-800 rounded-2xl max-h-[calc(100vh-270px)] shadow-sm transition-all duration-200 h-full relative"
-                style={{
-                  borderTop: `4px solid ${stage.color}`
-                }}
-                onDragOver={(e) => handleDragOver(e, stage.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, stage.id)}
-              >
-                {/* Column Header */}
-                <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#252529]/30 rounded-t-2xl">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">{stage.name}</h2>
-                        <button onClick={() => { setEditingStage(stage); setStageNameInput(stage.name); setIsStageModalOpen(true); }} className="text-gray-400 hover:text-blue-500 ml-1" title="Renomear Coluna"><Edit3 className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleDeleteStage(stage.id, stage.name)} className="text-gray-400 hover:text-red-500" title="Excluir Coluna"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                      <span className="px-2 py-0.5 text-[11px] font-black rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                        {stageDeals.length}
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-gray-400 dark:text-gray-500 block mt-1 tabular-nums">
-                      {formatCurrency(stageTotalSum)}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedStageId(stage.id);
-                      setIsCreateModalOpen(true);
-                    }}
-                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-[#2C2C2E] rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-                    title="Nova Oportunidade nesta Coluna"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {/* Cards Container */}
-                <div 
-                  className={`flex-1 overflow-y-auto p-3.5 space-y-3 scrollbar-thin transition-colors duration-200 ${
-                    isDragTarget ? 'bg-[#AE0000]/5 dark:bg-[#AE0000]/10 border-2 border-dashed border-[#AE0000]/40 rounded-b-2xl' : ''
-                  }`}
-                  style={{ minHeight: '150px' }}
-                >
-                  {stageDeals.length === 0 ? (
-                    <div className="h-full min-h-[200px] flex flex-col items-center justify-center text-center p-6 text-gray-400">
-                      <FolderKanban className="h-8 w-8 stroke-[1.25] text-gray-300 dark:text-gray-700 mb-2" />
-                      <span className="text-xs font-medium">Nenhum card aqui</span>
-                    </div>
-                  ) : (
-                    stageDeals.map(deal => {
-                      const dealClientName = deal.client?.name || 
-                        clientes.find(c => c.id === deal.clientId)?.name || 
-                        'Sem Cliente';
-
-                      const overdue = isDateOverdue(deal.nextActionDate);
-                      const isToday = isDateToday(deal.nextActionDate);
-
-                      const clientRecord = clientes.find(c => c.id === deal.clientId);
-                      const linkedDecisoresIds = deal.linkedDecisores || [];
-                      const linkedDecisoresObjects = clientRecord?.decisores?.filter(d => linkedDecisoresIds.includes(d.id)) || [];
-
-                      return (
-                        <div
-                          key={deal.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, deal.id)}
-                          onClick={() => openEditModal(deal)}
-                          className={cn(
-                            "group rounded-xl p-4 cursor-grab active:cursor-grabbing transition-all hover:shadow-md border",
-                            draggedDealId === deal.id ? "opacity-40 scale-95" : "",
-                            overdue && deal.status === 'open'
-                              ? "bg-red-50/30 dark:bg-red-950/10 border-red-300 dark:border-red-800 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:border-red-500"
-                              : isToday && deal.status === 'open'
-                                ? "bg-amber-50/30 dark:bg-amber-950/10 border-amber-300 dark:border-amber-800 hover:border-amber-500"
-                                : "bg-gray-50 dark:bg-[#2C2C2E] border-gray-100 dark:border-[#3A3A3C] hover:border-[#AE0000] dark:hover:border-[#AE0000]"
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            {/* Client Tag */}
-                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#AE0000] dark:text-[#AE0000] truncate max-w-[150px]">
-                              {dealClientName}
-                            </span>
-                            
-                            {/* Status Pill */}
-                            {deal.status !== 'open' && (
-                              <span className={`px-2 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-wider ${
-                                deal.status === 'won' 
-                                  ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
-                                  : 'bg-red-500/10 text-red-500 border border-red-500/20'
-                              }`}>
-                                {deal.status === 'won' ? 'Ganho' : 'Perdido'}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Deal Title */}
-                          <h3 className="text-sm font-bold text-gray-900 dark:text-white mt-1.5 leading-snug line-clamp-2">
-                            {deal.title}
-                          </h3>
-                          {deal.status === 'lost' && deal.lossReason && (
-                            <div className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-red-500/80 bg-red-500/10 px-2 py-0.5 rounded w-fit border border-red-500/20">
-                              <AlertCircle className="w-3 h-3" />
-                              <span className="truncate max-w-[180px]">{deal.lossReason}</span>
-                            </div>
-                          )}
-
-                          {/* BRL Value */}
-                          <div className="mt-3 flex items-center justify-between">
-                            <span className={cn("text-base font-black tabular-nums", deal.status === 'won' ? 'text-emerald-500' : deal.status === 'lost' ? 'text-red-500' : 'text-amber-500 dark:text-amber-400')}>
-                              {getDealValue(deal) > 0 ? formatCurrency(getDealValue(deal)) : 'A definir'}
-                            </span>
-                            
-                            {/* Actions overlay visible on hover */}
-                            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditModal(deal);
-                                }}
-                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-                                title="Detalhes da Oportunidade"
-                              >
-                                <Edit3 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteDeal(deal.id);
-                                }}
-                                className="p-1 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-500"
-                                title="Excluir Oportunidade"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if ((deal as any).projectId) {
-                                    navigate('/orcamentos/' + (deal as any).projectId);
-                                  } else {
-                                    setDealToCreateProject(deal);
-                                    setShowCreateProjectModal(true);
-                                  }
-                                }}
-                                className="p-1 hover:bg-blue-500/10 rounded text-blue-400 hover:text-blue-500 transition-colors"
-                                title={(deal as any).projectId ? "Ver Orçamento" : "Gerar Orçamento"}
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Calendar / Action Date Alarm or Avatar Stack */}
-                          {(deal.nextActionDate || linkedDecisoresObjects.length > 0) && (
-                            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#3A3A3C]/50 flex items-center gap-1.5">
-                              {deal.nextActionDate && (
-                                <>
-                                  <Calendar className={`h-3.5 w-3.5 ${
-                                    overdue ? 'text-red-500' : isToday ? 'text-amber-500' : 'text-gray-400'
-                                  }`} />
-                                  <span className={`text-[11px] font-bold ${
-                                    overdue 
-                                      ? 'text-red-500' 
-                                      : isToday 
-                                        ? 'text-amber-500' 
-                                        : 'text-gray-500 dark:text-gray-400'
-                                  }`}>
-                                    {overdue ? 'Atrasado: ' : isToday ? 'Hoje: ' : ''}
-                                    {new Date(deal.nextActionDate).toLocaleDateString('pt-BR')}
-                                  </span>
-                                  {overdue && (
-                                    <AlertCircle className="h-3.5 w-3.5 text-red-500 ml-0.5 animate-pulse" />
-                                  )}
-                                </>
-                              )}
-                              
-                              {/* Avatar Stack with linked decisores */}
-                              {linkedDecisoresObjects.length > 0 && (
-                                <div className="flex -space-x-1.5 overflow-hidden ml-auto">
-                                  {linkedDecisoresObjects.slice(0, 3).map((decisor, idx) => {
-                                    const nameParts = decisor.name.trim().split(' ');
-                                    const initials = nameParts.length > 1 
-                                      ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-                                      : (nameParts[0][0] || '').toUpperCase();
-                                    const bgColors = [
-                                      'bg-amber-50 text-white',
-                                      'bg-indigo-50 text-white',
-                                      'bg-rose-50 text-white',
-                                      'bg-teal-50 text-white',
-                                      'bg-purple-50 text-white',
-                                    ];
-                                    const colorClass = bgColors[idx % bgColors.length];
-                                    return (
-                                      <div 
-                                        key={decisor.id} 
-                                        className={cn(
-                                          "inline-flex items-center justify-center h-5 w-5 rounded-full text-[9px] font-black border border-white dark:border-[#1C1C1E] shadow-sm select-none",
-                                          colorClass
-                                        )}
-                                        title={`${decisor.name} - ${decisor.role}`}
-                                      >
-                                        {initials}
-                                      </div>
-                                    );
-                                  })}
-                                  {linkedDecisoresObjects.length > 3 && (
-                                    <div 
-                                      className="inline-flex items-center justify-center h-5 w-5 rounded-full text-[8px] font-black border border-white dark:border-[#1C1C1E] bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 shadow-sm"
-                                      title={`${linkedDecisoresObjects.length - 3} mais`}
-                                    >
-                                      +{linkedDecisoresObjects.length - 3}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          <button
-            onClick={() => { setEditingStage(null); setStageNameInput(''); setIsStageModalOpen(true); }}
-            className="w-80 flex-shrink-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-[#1C1C1E]/50 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl max-h-[calc(100vh-270px)] h-full min-h-[200px] text-gray-400 hover:text-[#AE0000] hover:border-[#AE0000] transition-all"
-          >
-            <Plus className="h-8 w-8 mb-2" />
-            <span className="font-bold text-sm">Adicionar Estágio</span>
-          </button>
-        </div>
-      </div>
+      <KanbanBoard
+        sortedStages={sortedStages}
+        dealsList={dealsList}
+        draggedOverStageId={draggedOverStageId}
+        draggedDealId={draggedDealId}
+        clientes={clientes}
+        getDealValue={getDealValue}
+        formatCurrency={formatCurrency}
+        isDateOverdue={isDateOverdue}
+        isDateToday={isDateToday}
+        handleDragOver={handleDragOver}
+        handleDragLeave={handleDragLeave}
+        handleDrop={handleDrop}
+        handleDragStart={handleDragStart}
+        setEditingStage={setEditingStage}
+        setStageNameInput={setStageNameInput}
+        setIsStageModalOpen={setIsStageModalOpen}
+        handleDeleteStage={handleDeleteStage}
+        setSelectedStageId={setSelectedStageId}
+        setIsCreateModalOpen={setIsCreateModalOpen}
+        openEditModal={openEditModal}
+        handleDeleteDeal={handleDeleteDeal}
+        navigate={navigate}
+        setDealToCreateProject={setDealToCreateProject}
+        setShowCreateProjectModal={setShowCreateProjectModal}
+      />
 
       {/* Creation Deal Modal */}
       {isCreateModalOpen && (
@@ -1280,7 +1086,7 @@ export const CRM: React.FC = () => {
                     return d;
                   });
                   try {
-                    await updateClient(currentClient.id, { decisores: updatedDecisores });
+                    await updateClientMutation.mutateAsync({ id: currentClient.id, updates: { decisores: updatedDecisores } });
                   } catch (error) {
                     console.error('Error updating client decisor:', error);
                   }
@@ -1440,7 +1246,7 @@ export const CRM: React.FC = () => {
                                     };
                                     const updatedDecisores = [...clientDecisores, newDecisorObj];
                                     try {
-                                      await updateClient(currentClient.id, { decisores: updatedDecisores });
+                                      await updateClientMutation.mutateAsync({ id: currentClient.id, updates: { decisores: updatedDecisores } });
                                       setLinkedDecisores(prev => {
                                         if (prev.includes(decisorId)) return prev;
                                         return [...prev, decisorId];

@@ -22,7 +22,12 @@ import {
   ArrowRight,
   ShieldAlert
 } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '../context/AppContext';
+import { useProjects, projectKeys } from '../hooks/useProjects';
+import { useClients, useProfessionals, useEquipments, useTemplates } from '../hooks/useResources';
+import { loadVersionData } from '../services/db-services';
 import { useModal } from '../context/ModalContext';
 import { cn, formatCurrency } from '../lib/utils';
 import { Template, Professional, Equipment, Project, ProjectVersion, Client } from '../types';
@@ -31,27 +36,20 @@ import { CreateProjectModal } from '../components/CreateProjectModal';
 import { PropostaModal } from '../components/PropostaModal';
 
 export const Recursos: React.FC = () => {
-  const { 
-    projects, 
-    addProject, 
-    addProjectVersion, 
-    deleteProject, 
-    templates,
-    professionals,
-    equipments,
-    addProfessional,
-    updateProfessional,
-    deleteProfessional,
-    addEquipment,
-    updateEquipment,
-    deleteEquipment,
-    deleteTemplate,
-    setEditingTemplateId,
-    loadVersionData,
-    clientes,
-    addClient,
-    deleteClient
-  } = useAppContext();
+  const {
+    projects = [],
+    createProjectMutation,
+    addVersionMutation,
+    deleteProjectMutation,
+  } = useProjects();
+  const { setEditingTemplateId } = useAppContext();
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { clients: clientes, addClientMutation, deleteClientMutation } = useClients();
+  const { professionals, addProfessionalMutation, updateProfessionalMutation, deleteProfessionalMutation } = useProfessionals();
+  const { equipments, addEquipmentMutation, updateEquipmentMutation, deleteEquipmentMutation } = useEquipments();
+  const { templates, deleteTemplateMutation } = useTemplates();
 
   const { openModal } = useModal();
   const navigate = useNavigate();
@@ -95,7 +93,7 @@ export const Recursos: React.FC = () => {
 
   const createBlankProject = async () => {
     setShowCreateModal(false);
-    const newProject = await addProject({
+    const newProject = await createProjectMutation.mutateAsync({
       title: 'Novo Projeto',
       client: 'Cliente Não Informado',
       status: 'Pendente',
@@ -108,7 +106,7 @@ export const Recursos: React.FC = () => {
 
   const createFromTemplate = async (selected: Template) => {
     setShowCreateModal(false);
-    const newProject = await addProject({
+    const newProject = await createProjectMutation.mutateAsync({
       title: 'Novo Projeto (Template: ' + selected.name + ')',
       client: 'Cliente Não Informado',
       status: 'Pendente',
@@ -128,7 +126,7 @@ export const Recursos: React.FC = () => {
       title: 'Excluir Projeto',
       message: 'Tem certeza que deseja arquivar ou excluir este projeto? Esta ação não poderá ser desfeita.',
       onConfirm: () => {
-        deleteProject(id);
+        deleteProjectMutation.mutate(id);
       }
     });
   };
@@ -139,7 +137,7 @@ export const Recursos: React.FC = () => {
       title: 'Excluir Profissional',
       message: 'Tem certeza que deseja excluir? Esta ação não afetará os orçamentos já criados.',
       onConfirm: () => {
-        deleteProfessional(id);
+        deleteProfessionalMutation.mutate(id);
       }
     });
   };
@@ -147,7 +145,7 @@ export const Recursos: React.FC = () => {
   const handleSaveProf = async (id: string) => {
     if (id === 'new') {
       if (newProfData.name) {
-        await addProfessional({
+        await addProfessionalMutation.mutateAsync({
           name: newProfData.name || '',
           role: newProfData.role || '',
           pix: newProfData.pix || '',
@@ -156,7 +154,7 @@ export const Recursos: React.FC = () => {
         setNewProfData({});
       }
     } else {
-      await updateProfessional(id, editProfData);
+      await updateProfessionalMutation.mutateAsync({ id, updates: editProfData });
       setEditingProf(null);
     }
   };
@@ -167,7 +165,7 @@ export const Recursos: React.FC = () => {
       title: 'Excluir Equipamento',
       message: 'Tem certeza que deseja excluir? Esta ação não afetará os orçamentos já criados.',
       onConfirm: () => {
-        deleteEquipment(id);
+        deleteEquipmentMutation.mutate(id);
       }
     });
   };
@@ -175,7 +173,7 @@ export const Recursos: React.FC = () => {
   const handleSaveEquip = async (id: string) => {
     if (id === 'new') {
       if (newEquipData.name) {
-        await addEquipment({
+        await addEquipmentMutation.mutateAsync({
           name: newEquipData.name || '',
           category: newEquipData.category || '',
           rentalValue: newEquipData.rentalValue || 0
@@ -183,7 +181,7 @@ export const Recursos: React.FC = () => {
         setNewEquipData({});
       }
     } else {
-      await updateEquipment(id, editEquipData);
+      await updateEquipmentMutation.mutateAsync({ id, updates: editEquipData });
       setEditingEquip(null);
     }
   };
@@ -239,7 +237,7 @@ export const Recursos: React.FC = () => {
     e.preventDefault();
     if (!newClientName.trim()) return;
 
-    await addClient({
+    await addClientMutation.mutateAsync({
       name: newClientName.trim(),
       contactName: newClientContactName.trim() || null,
       contactRole: null,
@@ -257,7 +255,7 @@ export const Recursos: React.FC = () => {
       title: 'Excluir Cliente',
       message: `Tem certeza que deseja excluir o cliente "${name}"? Esta ação não afetará os orçamentos já criados.`,
       onConfirm: () => {
-        deleteClient(id);
+        deleteClientMutation.mutate(id);
       }
     });
   };
@@ -588,7 +586,7 @@ export const Recursos: React.FC = () => {
                           <td className="px-6 py-5 text-right">
                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0" onClick={e => e.stopPropagation()}>
                               <button onClick={async () => {
-                                await addProjectVersion(p.id);
+                                await addVersionMutation.mutateAsync({ projectId: p.id });
                                 navigate(`/orcamentos/${p.id}`);
                               }} className="p-2 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors" title="Duplicar Versão"><Copy size={16} /></button>
                               <button onClick={() => handleDeleteProject(p.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors" title="Excluir"><Trash2 size={16} /></button>
@@ -785,7 +783,7 @@ export const Recursos: React.FC = () => {
                               <button 
                                 onClick={async () => {
                                   setEditingTemplateId(t.id);
-                                  const newProj = await addProject({
+                                  const newProj = await createProjectMutation.mutateAsync({
                                     title: t.name,
                                     client: 'Edição de Template',
                                     status: 'Pendente',
@@ -800,7 +798,7 @@ export const Recursos: React.FC = () => {
                               >
                                 <Eye size={16} />
                               </button>
-                              <button onClick={() => deleteTemplate(t.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                              <button onClick={() => deleteTemplateMutation.mutate(t.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"><Trash2 size={16} /></button>
                             </div>
                           </td>
                         </tr>
@@ -861,15 +859,17 @@ export const Recursos: React.FC = () => {
                               <button 
                                 onClick={async () => {
                                   setIsLoadingOS(os.version.id);
-                                  await loadVersionData(os.version.id);
-                                  setIsLoadingOS(null);
-                                  
-                                  const updatedProject = projects.find(p => p.id === os.project.id);
-                                  const updatedVersion = updatedProject?.versions.find(v => v.id === os.version.id);
-                                  
-                                  if (updatedProject && updatedVersion) {
-                                    setSelectedOSProject(updatedProject);
-                                    setSelectedOSVersion(updatedVersion);
+                                  try {
+                                    const token = await getToken();
+                                    if (!token) throw new Error('Não autenticado');
+                                    const groups = await queryClient.fetchQuery({
+                                      queryKey: projectKeys.version(os.version.id),
+                                      queryFn: () => loadVersionData(os.version.id, token),
+                                    });
+                                    setSelectedOSProject(os.project);
+                                    setSelectedOSVersion({ ...os.version, groups });
+                                  } finally {
+                                    setIsLoadingOS(null);
                                   }
                                 }} 
                                 disabled={isLoadingOS === os.version.id}

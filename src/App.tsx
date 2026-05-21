@@ -1,4 +1,5 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { SignedIn, SignedOut, SignIn } from '@clerk/clerk-react';
 import { AppProvider } from './context/AppContext';
@@ -12,6 +13,14 @@ import { ClienteProfile } from './pages/ClienteProfile';
 import { CRM } from './pages/CRM';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+});
 
 const router = createBrowserRouter([
   {
@@ -44,11 +53,13 @@ const router = createBrowserRouter([
 
 export default function App() {
   return (
-    <AppProvider>
-      <ModalProvider>
-        <RouterProvider router={router} />
-      </ModalProvider>
-    </AppProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
+        <ModalProvider>
+          <RouterProvider router={router} />
+        </ModalProvider>
+      </AppProvider>
+    </QueryClientProvider>
   );
 }
 

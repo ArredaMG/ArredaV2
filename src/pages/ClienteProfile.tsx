@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, Mail, MessageCircle, Instagram, Linkedin, Globe, Briefcase, Info, X, Plus, Trash2, Calendar, FileText, Users } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useClients } from '../hooks/useResources';
 import { useModal } from '../context/ModalContext';
 import { Client } from '../types';
 
 export const ClienteProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { clientes, updateClient, deleteClient } = useAppContext();
+  const { clients: clientes = [], updateClientMutation, deleteClientMutation } = useClients();
   const { openModal } = useModal();
 
   const client = clientes.find(c => c.id === id);
@@ -84,13 +84,16 @@ export const ClienteProfile: React.FC = () => {
     e.preventDefault();
     if (!editName.trim()) return;
 
-    await updateClient(client.id, {
-      name: editName.trim(),
-      document: editDocument.trim() || null,
-      contactName: editContactName.trim() || null,
-      contactRole: editContactRole.trim() || null,
-      leadSource: editLeadSource.trim() || null,
-      contacts: editContacts,
+    await updateClientMutation.mutateAsync({
+      id: client.id,
+      updates: {
+        name: editName.trim(),
+        document: editDocument.trim() || null,
+        contactName: editContactName.trim() || null,
+        contactRole: editContactRole.trim() || null,
+        leadSource: editLeadSource.trim() || null,
+        contacts: editContacts,
+      },
     });
 
     setIsEditModalOpen(false);
@@ -101,7 +104,7 @@ export const ClienteProfile: React.FC = () => {
       title: 'Excluir Cliente',
       message: `Tem certeza que deseja excluir o cliente "${client.name}" definitivamente? Esta ação não afetará os orçamentos já criados.`,
       onConfirm: async () => {
-        await deleteClient(client.id);
+        await deleteClientMutation.mutateAsync(client.id);
         navigate('/clientes');
       }
     });
