@@ -611,10 +611,6 @@ export const CRM: React.FC = () => {
     setDealLossReason('');
     setDealNotes('');
     setLinkedDecisores([]);
-    setNewDecisorName('');
-    setNewDecisorRole('');
-    setNewDecisorContact('');
-    setIsAddingNewDecisor(false);
   };
 
   // Check if date is overdue
