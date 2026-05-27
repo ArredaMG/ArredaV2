@@ -16,7 +16,6 @@ import {
   FolderKanban,
   Lock,
   ExternalLink,
-  UserPlus,
   Mail,
   MessageCircle,
   Instagram,
@@ -102,10 +101,6 @@ export const CRM: React.FC = () => {
   const [dealLossReason, setDealLossReason] = useState<string>('');
   const [dealNotes, setDealNotes] = useState<string>('');
   const [linkedDecisores, setLinkedDecisores] = useState<string[]>([]);
-  const [newDecisorName, setNewDecisorName] = useState<string>('');
-  const [newDecisorRole, setNewDecisorRole] = useState<string>('');
-  const [newDecisorContact, setNewDecisorContact] = useState<string>('');
-  const [isAddingNewDecisor, setIsAddingNewDecisor] = useState<boolean>(false);
 
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
@@ -1154,101 +1149,8 @@ export const CRM: React.FC = () => {
                             )}
                           </div>
 
-                          {/* QUICK FORM: CRIAR NOVO DECISOR DIRETAMENTE NO CLIENTE */}
-                          {isAddingNewDecisor ? (
-                            <div className="bg-gray-100 dark:bg-[#2C2C2E]/40 border border-gray-200 dark:border-gray-800 p-4 rounded-xl space-y-3 animate-fadeIn">
-                              <h4 className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Novo Decisor para {currentClient.name}</h4>
-                              <div className="space-y-2.5">
-                                <div>
-                                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Nome *</label>
-                                  <input 
-                                    type="text"
-                                    value={newDecisorName}
-                                    onChange={(e) => setNewDecisorName(e.target.value)}
-                                    placeholder="Nome completo"
-                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#AE0000]"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Cargo *</label>
-                                  <input 
-                                    type="text"
-                                    value={newDecisorRole}
-                                    onChange={(e) => setNewDecisorRole(e.target.value)}
-                                    placeholder="Ex: CEO, Gerente..."
-                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#AE0000]"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Contato (E-mail ou WhatsApp)</label>
-                                  <input 
-                                    type="text"
-                                    value={newDecisorContact}
-                                    onChange={(e) => setNewDecisorContact(e.target.value)}
-                                    placeholder="Ex: cel@whats.com ou @insta"
-                                    className="w-full bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-[#AE0000]"
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div className="flex gap-2 pt-1.5">
-                                <button 
-                                  type="button" 
-                                  onClick={() => {
-                                    setNewDecisorName('');
-                                    setNewDecisorRole('');
-                                    setNewDecisorContact('');
-                                    setIsAddingNewDecisor(false);
-                                  }} 
-                                  className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                                >
-                                  Cancelar
-                                </button>
-                                <button 
-                                  type="button" 
-                                  onClick={async () => {
-                                    if (!newDecisorName.trim() || !newDecisorRole.trim()) {
-                                      alert('Preencha Nome e Cargo do novo decisor.');
-                                      return;
-                                    }
-                                    const decisorId = uuidv4();
-                                    const newDecisorObj = {
-                                      id: decisorId,
-                                      name: newDecisorName.trim(),
-                                      role: newDecisorRole.trim(),
-                                      contacts: newDecisorContact.trim() ? [{ type: detectContactType(newDecisorContact), value: newDecisorContact.trim() }] : []
-                                    };
-                                    const updatedDecisores = [...clientDecisores, newDecisorObj];
-                                    try {
-                                      await updateClientMutation.mutateAsync({ id: currentClient.id, updates: { decisores: updatedDecisores } });
-                                      setLinkedDecisores(prev => {
-                                        if (prev.includes(decisorId)) return prev;
-                                        return [...prev, decisorId];
-                                      });
-                                      setNewDecisorName('');
-                                      setNewDecisorRole('');
-                                      setNewDecisorContact('');
-                                      setIsAddingNewDecisor(false);
-                                    } catch (error) {
-                                      console.error('Error creating decisor:', error);
-                                      alert('Erro ao criar decisor.');
-                                    }
-                                  }} 
-                                  className="flex-1 py-1.5 bg-[#AE0000] hover:bg-[#8B0000] text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
-                                >
-                                  Salvar &amp; Vincular
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button 
-                              type="button" 
-                              onClick={() => setIsAddingNewDecisor(true)} 
-                              className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-500 hover:text-[#AE0000] hover:border-[#AE0000] hover:bg-[#AE0000]/5 transition-all"
-                            >
-                              <UserPlus size={14} /> Novo Decisor
-                            </button>
-                          )}
+                          {/* Criação/edição de decisores acontece no cadastro completo do cliente.
+                              Aqui, o usuário apenas vincula decisores já existentes via dropdown acima. */}
                         </div>
                       )}
                     </div>

@@ -17,62 +17,47 @@ export const ClientesList: React.FC = () => {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [contactInput, setContactInput] = useState('');
-  const [tempContacts, setTempContacts] = useState<{ type: string; value: string }[]>([]);
+  const [document, setDocument] = useState('');
+  const [address, setAddress] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [employeeCount, setEmployeeCount] = useState('');
+  const [socialType, setSocialType] = useState<'website' | 'linkedin' | 'youtube' | 'instagram'>('website');
+  const [socialInput, setSocialInput] = useState('');
+  const [socialLinks, setSocialLinks] = useState<{ type: string; value: string }[]>([]);
 
   const handleOpenModal = () => {
     setName('');
-    setContactName('');
-    setContactInput('');
-    setTempContacts([]);
+    setDocument('');
+    setAddress('');
+    setIndustry('');
+    setEmployeeCount('');
+    setSocialType('website');
+    setSocialInput('');
+    setSocialLinks([]);
     setIsModalOpen(true);
   };
 
-  // Helper function to detect contact type using Regex
-  const detectContactType = (val: string): 'email' | 'whatsapp' | 'instagram' | 'linkedin' | 'website' => {
-    const value = val.trim().toLowerCase();
-    
-    // Check if it's an email
-    if (value.includes('@') && value.includes('.com')) {
-      return 'email';
-    }
-    
-    // Check if it's whatsapp / numeric
-    const cleanPhone = value.replace(/[\s\-\+\(\)]/g, '');
-    if (/^\d{8,15}$/.test(cleanPhone)) {
-      return 'whatsapp';
-    }
-    
-    // Check for instagram
-    if (value.includes('instagram.com') || val.trim().startsWith('@')) {
-      return 'instagram';
-    }
-    
-    // Check for linkedin
-    if (value.includes('linkedin.com')) {
-      return 'linkedin';
-    }
-    
-    // Default to general website URL
-    return 'website';
+  const normalizeSocialValue = (type: string, value: string) => {
+    const v = value.trim();
+    if (!v) return '';
+    if (type === 'instagram' && v.startsWith('@')) return v;
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    return `https://${v}`;
   };
 
-  // Handle adding contact from input
-  const handleAddContact = () => {
-    if (!contactInput.trim()) return;
-    const value = contactInput.trim();
-    const type = detectContactType(value);
-    
-    // Avoid duplicates in local state
-    if (!tempContacts.some(c => c.value === value)) {
-      setTempContacts(prev => [...prev, { type, value }]);
+  const handleAddSocialLink = () => {
+    if (!socialInput.trim()) return;
+    const value = normalizeSocialValue(socialType, socialInput);
+    if (!value) return;
+
+    if (!socialLinks.some(c => c.type === socialType && c.value === value)) {
+      setSocialLinks(prev => [...prev, { type: socialType, value }]);
     }
-    setContactInput('');
+    setSocialInput('');
   };
 
   const handleRemoveContact = (indexToRemove: number) => {
-    setTempContacts(prev => prev.filter((_, i) => i !== indexToRemove));
+    setSocialLinks(prev => prev.filter((_, i) => i !== indexToRemove));
   };
 
   const handleSaveClient = async (e: React.FormEvent) => {
@@ -81,10 +66,14 @@ export const ClientesList: React.FC = () => {
 
     await addClientMutation.mutateAsync({
       name: name.trim(),
-      contactName: contactName.trim() || null,
+      document: document.trim() || null,
+      address: address.trim() || null,
+      industry: industry.trim() || null,
+      employeeCount: employeeCount.trim() ? Number(employeeCount) : null,
+      contactName: null,
       contactRole: null,
       leadSource: null,
-      contacts: tempContacts,
+      contacts: socialLinks,
     });
 
     setIsModalOpen(false);
@@ -304,57 +293,91 @@ export const ClientesList: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nome do Contato Principal</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: João Silva"
-                  value={contactName}
-                  onChange={e => setContactName(e.target.value)}
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">CNPJ</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 00.000.000/0001-00"
+                  value={document}
+                  onChange={e => setDocument(e.target.value)}
+                  className="w-full bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Endereço</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Av. Paulista, 1000 - São Paulo/SP"
+                  value={address}
+                  onChange={e => setAddress(e.target.value)}
                   className="w-full bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium"
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Ramo de Atuação</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Construção, Eventos..."
+                    value={industry}
+                    onChange={e => setIndustry(e.target.value)}
+                    className="w-full bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Quantidade de Funcionários</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="Ex: 25"
+                    value={employeeCount}
+                    onChange={e => setEmployeeCount(e.target.value)}
+                    className="w-full bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium"
+                  />
+                </div>
+              </div>
+
               <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">Adicionar Contato ou Link</label>
-                <span className="block text-[11px] text-zinc-400 dark:text-zinc-500 mb-3">O sistema detectará automaticamente: Whatsapp, E-mail, Instagram, Linkedin ou Site.</span>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">Redes Sociais</label>
+                <span className="block text-[11px] text-zinc-400 dark:text-zinc-500 mb-3">Você pode cadastrar mais de uma rede (site, LinkedIn, YouTube, Instagram).</span>
                 
                 <div className="flex gap-2">
+                  <select
+                    value={socialType}
+                    onChange={e => setSocialType(e.target.value as any)}
+                    className="bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-3 py-3 outline-none transition-all text-sm font-bold"
+                  >
+                    <option value="website">Site</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="instagram">Instagram</option>
+                  </select>
                   <input 
                     type="text" 
-                    placeholder="Cole um link, e-mail, número com DDD ou @username..."
-                    value={contactInput}
-                    onChange={e => setContactInput(e.target.value)}
+                    placeholder="Cole o link ou @username..."
+                    value={socialInput}
+                    onChange={e => setSocialInput(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        handleAddContact();
+                        handleAddSocialLink();
                       }
                     }}
                     className="flex-1 bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm"
                   />
                   <button
                     type="button"
-                    onClick={handleAddContact}
+                    onClick={handleAddSocialLink}
                     className="px-4 bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-white rounded-xl font-bold transition-all active:scale-95 text-sm"
                   >
                     Adicionar
                   </button>
                 </div>
 
-                {/* Real-time parse indicator */}
-                {contactInput.trim() && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-400 font-semibold px-1">
-                    <span>Reconhecido como:</span>
-                    <span className="capitalize px-2 py-0.5 bg-orange-100 dark:bg-orange-950/40 rounded border border-orange-200/50 dark:border-orange-900/30 flex items-center gap-1">
-                      {getContactIcon(detectContactType(contactInput))}
-                      {detectContactType(contactInput)}
-                    </span>
-                  </div>
-                )}
-
                 {/* Selected/added contacts list */}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {tempContacts.map((c, idx) => (
+                  {socialLinks.map((c, idx) => (
                     <div 
                       key={idx}
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-50/50 dark:bg-orange-950/10 border border-orange-500/20 text-xs font-medium text-zinc-800 dark:text-zinc-200 shadow-sm"
@@ -370,7 +393,7 @@ export const ClientesList: React.FC = () => {
                       </button>
                     </div>
                   ))}
-                  {tempContacts.length === 0 && (
+                  {socialLinks.length === 0 && (
                     <p className="text-zinc-400 dark:text-zinc-600 text-xs italic py-2">Nenhum meio de contato adicionado ainda.</p>
                   )}
                 </div>

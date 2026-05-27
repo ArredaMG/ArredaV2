@@ -102,9 +102,13 @@ export const Recursos: React.FC = () => {
   // Clientes Cadastro Express modal state
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [newClientName, setNewClientName] = useState('');
-  const [newClientContactName, setNewClientContactName] = useState('');
-  const [newClientContactInput, setNewClientContactInput] = useState('');
-  const [newClientTempContacts, setNewClientTempContacts] = useState<{ type: string; value: string }[]>([]);
+  const [newClientDocument, setNewClientDocument] = useState('');
+  const [newClientAddress, setNewClientAddress] = useState('');
+  const [newClientIndustry, setNewClientIndustry] = useState('');
+  const [newClientEmployeeCount, setNewClientEmployeeCount] = useState('');
+  const [newClientSocialType, setNewClientSocialType] = useState<'website' | 'linkedin' | 'youtube' | 'instagram'>('website');
+  const [newClientSocialInput, setNewClientSocialInput] = useState('');
+  const [newClientSocialLinks, setNewClientSocialLinks] = useState<{ type: string; value: string }[]>([]);
 
   // Reset search when changing tabs
   useEffect(() => {
@@ -184,48 +188,37 @@ export const Recursos: React.FC = () => {
   // Handlers for Clientes Cadastro Express
   const handleOpenClientModal = () => {
     setNewClientName('');
-    setNewClientContactName('');
-    setNewClientContactInput('');
-    setNewClientTempContacts([]);
+    setNewClientDocument('');
+    setNewClientAddress('');
+    setNewClientIndustry('');
+    setNewClientEmployeeCount('');
+    setNewClientSocialType('website');
+    setNewClientSocialInput('');
+    setNewClientSocialLinks([]);
     setIsClientModalOpen(true);
   };
 
-  const detectContactType = (val: string): 'email' | 'whatsapp' | 'instagram' | 'linkedin' | 'website' => {
-    const value = val.trim().toLowerCase();
-    
-    if (value.includes('@') && value.includes('.com')) {
-      return 'email';
-    }
-    
-    const cleanPhone = value.replace(/[\s\-\+\(\)]/g, '');
-    if (/^\d{8,15}$/.test(cleanPhone)) {
-      return 'whatsapp';
-    }
-    
-    if (value.includes('instagram.com') || val.trim().startsWith('@')) {
-      return 'instagram';
-    }
-    
-    if (value.includes('linkedin.com')) {
-      return 'linkedin';
-    }
-    
-    return 'website';
+  const normalizeSocialValue = (type: string, value: string) => {
+    const v = value.trim();
+    if (!v) return '';
+    if (type === 'instagram' && v.startsWith('@')) return v;
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    return `https://${v}`;
   };
 
-  const handleAddContact = () => {
-    if (!newClientContactInput.trim()) return;
-    const value = newClientContactInput.trim();
-    const type = detectContactType(value);
-    
-    if (!newClientTempContacts.some(c => c.value === value)) {
-      setNewClientTempContacts(prev => [...prev, { type, value }]);
+  const handleAddSocialLink = () => {
+    if (!newClientSocialInput.trim()) return;
+    const value = normalizeSocialValue(newClientSocialType, newClientSocialInput);
+    if (!value) return;
+
+    if (!newClientSocialLinks.some(c => c.type === newClientSocialType && c.value === value)) {
+      setNewClientSocialLinks(prev => [...prev, { type: newClientSocialType, value }]);
     }
-    setNewClientContactInput('');
+    setNewClientSocialInput('');
   };
 
   const handleRemoveContact = (indexToRemove: number) => {
-    setNewClientTempContacts(prev => prev.filter((_, i) => i !== indexToRemove));
+    setNewClientSocialLinks(prev => prev.filter((_, i) => i !== indexToRemove));
   };
 
   const handleSaveClient = async (e: React.FormEvent) => {
@@ -234,10 +227,14 @@ export const Recursos: React.FC = () => {
 
     await addClientMutation.mutateAsync({
       name: newClientName.trim(),
-      contactName: newClientContactName.trim() || null,
+      document: newClientDocument.trim() || null,
+      address: newClientAddress.trim() || null,
+      industry: newClientIndustry.trim() || null,
+      employeeCount: newClientEmployeeCount.trim() ? Number(newClientEmployeeCount) : null,
+      contactName: null,
       contactRole: null,
       leadSource: null,
-      contacts: newClientTempContacts,
+      contacts: newClientSocialLinks,
       decisores: [],
     });
 
@@ -449,8 +446,9 @@ export const Recursos: React.FC = () => {
                   <thead>
                     <tr className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 dark:text-zinc-400 text-[11px] font-black uppercase tracking-wider border-b border-gray-200 dark:border-gray-800">
                       <th className="px-6 py-4">Empresa / Razão Social</th>
-                      <th className="px-6 py-4">Contato Principal</th>
-                      <th className="px-6 py-4">Meios de Contato</th>
+                      <th className="px-6 py-4">Segmento</th>
+                      <th className="px-6 py-4">Tamanho</th>
+                      <th className="px-6 py-4">Endereço</th>
                       <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
@@ -473,35 +471,25 @@ export const Recursos: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          {c.contactName ? (
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">{c.contactName}</span>
-                              {c.contactRole && <span className="text-xs text-zinc-400 mt-0.5">{c.contactRole}</span>}
-                            </div>
+                          {c.industry ? (
+                            <span className="text-zinc-800 dark:text-zinc-200 text-sm font-medium">{c.industry}</span>
                           ) : (
                             <span className="text-zinc-400 dark:text-zinc-600 text-xs italic">Não informado</span>
                           )}
                         </td>
                         <td className="px-6 py-5">
-                          <div className="flex flex-wrap gap-1.5" onClick={e => e.stopPropagation()}>
-                            {c.contacts && c.contacts.length > 0 ? (
-                              c.contacts.map((contact, idx) => (
-                                <a
-                                  key={idx}
-                                  href={getContactLink(contact.type, contact.value)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-zinc-800/40 text-gray-600 dark:text-zinc-300 hover:border-orange-500/50 hover:bg-orange-50/20 dark:hover:bg-orange-950/10 transition-all shadow-sm"
-                                  title={contact.value}
-                                >
-                                  {getContactIcon(contact.type)}
-                                  <span className="max-w-[120px] truncate text-[11px]">{contact.value}</span>
-                                </a>
-                              ))
-                            ) : (
-                              <span className="text-zinc-400 dark:text-zinc-600 text-xs italic">Nenhum canal salvo</span>
-                            )}
-                          </div>
+                          {c.employeeCount ? (
+                            <span className="text-zinc-800 dark:text-zinc-200 text-sm">{c.employeeCount} funcionários</span>
+                          ) : (
+                            <span className="text-zinc-400 dark:text-zinc-600 text-xs italic">Não informado</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-5">
+                          {c.address ? (
+                            <span className="text-zinc-600 dark:text-zinc-400 text-sm block max-w-[200px] truncate" title={c.address}>{c.address}</span>
+                          ) : (
+                            <span className="text-zinc-400 dark:text-zinc-600 text-xs italic">Não informado</span>
+                          )}
                         </td>
                         <td className="px-6 py-5 text-right">
                           <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0" onClick={e => e.stopPropagation()}>
@@ -941,57 +929,91 @@ export const Recursos: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nome do Contato Principal</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: João Silva"
-                  value={newClientContactName}
-                  onChange={e => setNewClientContactName(e.target.value)}
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">CNPJ</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 00.000.000/0001-00"
+                  value={newClientDocument}
+                  onChange={e => setNewClientDocument(e.target.value)}
+                  className="w-full bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Endereço</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Av. Paulista, 1000 - São Paulo/SP"
+                  value={newClientAddress}
+                  onChange={e => setNewClientAddress(e.target.value)}
                   className="w-full bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium"
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Ramo de Atuação</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Construção, Eventos..."
+                    value={newClientIndustry}
+                    onChange={e => setNewClientIndustry(e.target.value)}
+                    className="w-full bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Quantidade de Funcionários</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="Ex: 25"
+                    value={newClientEmployeeCount}
+                    onChange={e => setNewClientEmployeeCount(e.target.value)}
+                    className="w-full bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium"
+                  />
+                </div>
+              </div>
+
               <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">Adicionar Contato ou Link</label>
-                <span className="block text-[11px] text-zinc-400 dark:text-zinc-500 mb-3">O sistema detectará automaticamente: Whatsapp, E-mail, Instagram, Linkedin ou Site.</span>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">Redes Sociais</label>
+                <span className="block text-[11px] text-zinc-400 dark:text-zinc-500 mb-3">Você pode cadastrar mais de uma rede (site, LinkedIn, YouTube, Instagram).</span>
                 
                 <div className="flex gap-2">
+                  <select
+                    value={newClientSocialType}
+                    onChange={e => setNewClientSocialType(e.target.value as any)}
+                    className="bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-3 py-3 outline-none transition-all text-sm font-bold"
+                  >
+                    <option value="website">Site</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="instagram">Instagram</option>
+                  </select>
                   <input 
                     type="text" 
-                    placeholder="Cole um link, e-mail, número com DDD ou @username..."
-                    value={newClientContactInput}
-                    onChange={e => setNewClientContactInput(e.target.value)}
+                    placeholder="Cole o link ou @username..."
+                    value={newClientSocialInput}
+                    onChange={e => setNewClientSocialInput(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        handleAddContact();
+                        handleAddSocialLink();
                       }
                     }}
                     className="flex-1 bg-zinc-100 dark:bg-zinc-800/60 border border-transparent focus:border-orange-500/50 focus:bg-white dark:focus:bg-zinc-800 rounded-xl px-4 py-3 outline-none transition-all text-sm"
                   />
                   <button
                     type="button"
-                    onClick={handleAddContact}
+                    onClick={handleAddSocialLink}
                     className="px-4 bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-white rounded-xl font-bold transition-all active:scale-95 text-sm"
                   >
                     Adicionar
                   </button>
                 </div>
 
-                {/* Real-time parse indicator */}
-                {newClientContactInput.trim() && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-400 font-semibold px-1">
-                    <span>Reconhecido como:</span>
-                    <span className="capitalize px-2 py-0.5 bg-orange-100 dark:bg-orange-950/40 rounded border border-orange-200/50 dark:border-orange-900/30 flex items-center gap-1">
-                      {getContactIcon(detectContactType(newClientContactInput))}
-                      {detectContactType(newClientContactInput)}
-                    </span>
-                  </div>
-                )}
-
                 {/* Selected/added contacts list */}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {newClientTempContacts.map((c, idx) => (
+                  {newClientSocialLinks.map((c, idx) => (
                     <div 
                       key={idx}
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-50/50 dark:bg-orange-950/10 border border-orange-500/20 text-xs font-medium text-zinc-800 dark:text-zinc-200 shadow-sm"
@@ -1007,7 +1029,7 @@ export const Recursos: React.FC = () => {
                       </button>
                     </div>
                   ))}
-                  {newClientTempContacts.length === 0 && (
+                  {newClientSocialLinks.length === 0 && (
                     <p className="text-zinc-400 dark:text-zinc-600 text-xs italic py-2">Nenhum meio de contato adicionado ainda.</p>
                   )}
                 </div>

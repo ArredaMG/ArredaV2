@@ -455,6 +455,9 @@ function registerDbMutationRoutes(app, deps) {
         id: client.id,
         name: client.name || client.nome,
         document: client.document || client.cnpj,
+        address: client.address,
+        industry: client.industry,
+        employeeCount: client.employeeCount,
         contactName: client.contactName,
         contactRole: client.contactRole,
         leadSource: client.leadSource,
@@ -471,7 +474,16 @@ function registerDbMutationRoutes(app, deps) {
   app.put('/api/db/clients/:id', auth, requireDb, async (req, res) => {
     try {
       const updates = pickDefinedFields(req.body, [
-        'name', 'document', 'contactName', 'contactRole', 'leadSource', 'contacts', 'decisores',
+        'name',
+        'document',
+        'address',
+        'industry',
+        'employeeCount',
+        'contactName',
+        'contactRole',
+        'leadSource',
+        'contacts',
+        'decisores',
       ]);
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: 'Nenhum campo válido para atualizar.' });

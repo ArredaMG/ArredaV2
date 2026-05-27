@@ -4,6 +4,9 @@ export interface Client {
   id: string;
   name: string;
   document?: string | null;
+  address?: string | null;
+  industry?: string | null;
+  employeeCount?: number | null;
   contactName?: string | null;
   contactRole?: string | null;
   leadSource?: string | null;
